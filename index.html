@@ -713,7 +713,7 @@ async function loadData(){
       nome:u.nome, re:String(u.re), senha:String(u.senha), turno:u.turno, perfil:u.perfil
     }));
     state.apontamentos = (aResp.apontamentos||[]).map(a=>({
-      id:a.id, data:a.data, hora:a.hora, inspetor:a.inspetor, re:String(a.re), turno:a.turno,
+      id:a.id, data:formatDataBR(a.data), hora:a.hora, inspetor:a.inspetor, re:String(a.re), turno:a.turno,
       pn:String(a.pn), cliente:a.cliente, qtdTotal:Number(a.qtdTotal)||0, qtdNC:Number(a.qtdNC)||0,
       defeitos:a.defeitos||{}, obs:a.obs||''
     }));
@@ -1401,7 +1401,32 @@ function toISODate(d){
 
 function showEl(id,msg){const el=document.getElementById(id);if(msg)el.textContent=msg;el.style.display='block';}
 function hideEl(id){document.getElementById(id).style.display='none';}
-function parseData(str){const[d,m,y]=str.split('/');return new Date(`${y}-${m}-${d}`);}
+function parseData(str){
+  if(!str) return new Date(NaN);
+  str = String(str).trim();
+  // Formato ISO vindo do Google Sheets (ex: 2026-06-20T00:00:00.000Z ou 2026-06-20)
+  if(/^\d{4}-\d{2}-\d{2}/.test(str)){
+    const datePart = str.split('T')[0];
+    const [y,m,d] = datePart.split('-');
+    return new Date(Number(y), Number(m)-1, Number(d));
+  }
+  // Formato brasileiro DD/MM/AAAA
+  if(str.includes('/')){
+    const [d,m,y] = str.split('/');
+    return new Date(Number(y), Number(m)-1, Number(d));
+  }
+  return new Date(str);
+}
+
+function formatDataBR(str){
+  // Garante que a data exibida na tela sempre fique em DD/MM/AAAA, não importa o formato de origem
+  const d = parseData(str);
+  if(isNaN(d)) return str;
+  const dd=String(d.getDate()).padStart(2,'0');
+  const mm=String(d.getMonth()+1).padStart(2,'0');
+  const yyyy=d.getFullYear();
+  return `${dd}/${mm}/${yyyy}`;
+}
 document.getElementById('login-senha').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
 document.getElementById('login-re').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
 </script>
