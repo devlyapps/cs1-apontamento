@@ -123,6 +123,38 @@
   .nc-popup-badge{background:#E8A93B;color:var(--red-dark);font-weight:800;font-size:11px;padding:2px 8px;border-radius:10px;}
   .nc-popup-close{position:absolute;top:10px;right:14px;font-size:18px;cursor:pointer;color:var(--gray-500);font-weight:700;line-height:1;}
   .nc-popup-close:hover{color:var(--black);}
+
+  /* MODAL PLANO DE CONTROLE */
+  .pc-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:800;display:flex;align-items:center;justify-content:center;}
+  .pc-modal{background:var(--white);border-radius:14px;width:96%;max-width:560px;max-height:92vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 12px 48px rgba(0,0,0,0.35);}
+  .pc-header{background:var(--red-dark);color:white;padding:16px 20px;flex-shrink:0;}
+  .pc-header-title{font-size:15px;font-weight:700;letter-spacing:0.3px;}
+  .pc-header-sub{font-size:11px;opacity:0.8;margin-top:2px;}
+  .pc-progress{height:5px;background:rgba(255,255,255,0.2);flex-shrink:0;}
+  .pc-progress-bar{height:100%;background:#E8A93B;transition:width 0.3s ease;}
+  .pc-body{padding:28px 24px;flex:1;overflow-y:auto;display:flex;flex-direction:column;}
+  .pc-step-label{font-size:11px;font-weight:700;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;}
+  .pc-step-question{font-size:17px;font-weight:700;color:var(--black);line-height:1.4;margin-bottom:4px;}
+  .pc-step-code{font-size:12px;color:var(--red);font-weight:600;margin-bottom:18px;}
+  .pc-input-big{width:100%;padding:16px;font-size:24px;font-weight:700;border:2px solid var(--gray-300);border-radius:8px;text-align:center;font-family:var(--font);background:var(--gray-100);color:var(--black);}
+  .pc-input-big:focus{outline:none;border-color:var(--red);background:var(--white);}
+  .pc-select-big{width:100%;padding:16px;font-size:18px;font-weight:600;border:2px solid var(--gray-300);border-radius:8px;font-family:var(--font);background:var(--gray-100);color:var(--black);}
+  .pc-select-big:focus{outline:none;border-color:var(--red);}
+  .pc-oknok{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:8px;}
+  .pc-btn-ok{padding:32px 0;font-size:24px;font-weight:800;border:none;border-radius:10px;background:#1A7A3C;color:white;cursor:pointer;transition:transform 0.1s,opacity 0.2s;letter-spacing:1px;}
+  .pc-btn-nok{padding:32px 0;font-size:24px;font-weight:800;border:none;border-radius:10px;background:#C0152A;color:white;cursor:pointer;transition:transform 0.1s,opacity 0.2s;letter-spacing:1px;}
+  .pc-btn-ok:active,.pc-btn-nok:active{transform:scale(0.97);}
+  .pc-btn-ok.selected{box-shadow:0 0 0 4px #1A7A3C,0 0 0 7px rgba(26,122,60,0.25);}
+  .pc-btn-nok.selected{box-shadow:0 0 0 4px #C0152A,0 0 0 7px rgba(192,21,42,0.25);}
+  .pc-btn-ok.dimmed,.pc-btn-nok.dimmed{opacity:0.35;}
+  .pc-nok-alert{background:#FFF0F0;border:1.5px solid #C0152A;border-radius:8px;padding:12px 14px;font-size:13px;font-weight:600;color:#8C0E1E;margin-top:12px;display:none;}
+  .pc-text-big{width:100%;padding:14px;font-size:16px;border:2px solid var(--gray-300);border-radius:8px;font-family:var(--font);background:var(--gray-100);min-height:80px;resize:none;}
+  .pc-text-big:focus{outline:none;border-color:var(--red);background:var(--white);}
+  .pc-footer{padding:16px 24px;border-top:1px solid var(--gray-100);display:flex;gap:10px;flex-shrink:0;align-items:center;}
+  .pc-btn-next{flex:1;padding:16px;font-size:16px;font-weight:700;background:var(--red-dark);color:white;border:none;border-radius:8px;cursor:pointer;}
+  .pc-btn-next:disabled{opacity:0.4;cursor:not-allowed;}
+  .pc-btn-prev{padding:16px 20px;font-size:16px;font-weight:600;background:var(--gray-100);color:var(--gray-700);border:1.5px solid var(--gray-300);border-radius:8px;cursor:pointer;}
+  .pc-step-counter{font-size:12px;color:var(--gray-500);text-align:right;min-width:60px;}
   .hbar-value{font-size:13px;font-weight:700;color:var(--black);}
 
   .funnel-chart{display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 4px;}
@@ -488,6 +520,25 @@
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('modal-del')">Cancelar</button>
       <button class="btn btn-primary" style="width:auto;padding:10px 24px" onclick="confirmarDelete()">Remover</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL PLANO DE CONTROLE PN 2751 -->
+<div id="modal-pc-2751" style="display:none">
+  <div class="pc-overlay">
+    <div class="pc-modal">
+      <div class="pc-header">
+        <div class="pc-header-title">📋 Plano de Controle — PN 2751</div>
+        <div class="pc-header-sub" id="pc-step-label-top">Passo 1 de 14</div>
+      </div>
+      <div class="pc-progress"><div class="pc-progress-bar" id="pc-progress-bar" style="width:7%"></div></div>
+      <div class="pc-body" id="pc-body"></div>
+      <div class="pc-footer">
+        <button class="pc-btn-prev" id="pc-btn-prev" onclick="pcPrev()" style="display:none">← Voltar</button>
+        <button class="pc-btn-next" id="pc-btn-next" onclick="pcNext()">Próximo →</button>
+        <span class="pc-step-counter" id="pc-step-counter">1 / 14</span>
+      </div>
     </div>
   </div>
 </div>
@@ -1303,7 +1354,6 @@ function limparForm(){
 }
 
 function onPnInput(input){
-  // Permite apenas números, máximo 4 dígitos
   input.value = input.value.replace(/\D/g,'').slice(0,4);
   const pn = input.value;
   const clienteField = document.getElementById('ap-cliente');
@@ -1318,9 +1368,159 @@ function onPnInput(input){
       clienteField.value = '';
       showEl('ap-cliente-msg');
     }
+    // Gatilho do plano de controle
+    if(PC_PLANOS[pn]) abrirPlanoControle(pn);
   } else {
     clienteField.value = '';
     hideEl('ap-cliente-msg');
+  }
+}
+
+// ══ PLANO DE CONTROLE ══
+const PC_PLANOS = {
+  '2751': [
+    { tipo:'numero', label:'Nº da Peça', campo:'pc_nrpeca', placeholder:'Ex: 030626161710' },
+    { tipo:'select', label:'Destino da peça', campo:'pc_destino', opcoes:['Cliente','Retrabalho','Análise dos Inspetores','Refugo'] },
+    { tipo:'numero', label:'Turno US', campo:'pc_turno_us', placeholder:'Ex: 2' },
+    { tipo:'numero', label:'RE Operador', campo:'pc_re_op', placeholder:'Ex: 900988' },
+    { tipo:'oknok', label:'(P008) - Isento de Defeitos de Fundição', campo:'pc_p008' },
+    { tipo:'oknok', label:'(P013) - Isento de Rebarbas e Furos Obstruídos', campo:'pc_p013' },
+    { tipo:'oknok', label:'(P021) - Verificar Gravação "A" para peças aprovadas', campo:'pc_p021' },
+    { tipo:'oknok', label:'(P024) - Verificar Presença da esfera', campo:'pc_p024' },
+    { tipo:'oknok', label:'(P033) - Isento de Riscos, Batidas, Cavacos, Sujeira e Poeira', campo:'pc_p033' },
+    { tipo:'oknok', label:'(P034) - Verificar Critério de Porosidade: Faces, Furos e Roscas', campo:'pc_p034' },
+    { tipo:'oknok', label:'(P035) - Isento de Oxidação e/ou Impureza', campo:'pc_p035' },
+    { tipo:'oknok', label:'(P036) - Verificar se a peça está Jateada', campo:'pc_p036' },
+    { tipo:'texto', label:'Em caso de Retrabalho', sublabel:'Colocar o DEFEITO e ÁREA', campo:'pc_retrabalho', placeholder:'Descreva o defeito e a área (se aplicável)' },
+    { tipo:'texto', label:'Em caso de peça não conforme', sublabel:'Colocar o DATADOR BRUTO', campo:'pc_datador', placeholder:'Informe o datador bruto (se aplicável)' },
+  ]
+};
+
+let pcState = { pn:'', step:0, respostas:{}, total:0 };
+
+function abrirPlanoControle(pn){
+  const passos = PC_PLANOS[pn];
+  if(!passos) return;
+  pcState = { pn, step:0, respostas:{}, total:passos.length };
+  document.getElementById('modal-pc-2751').style.display='';
+  pcRenderStep();
+}
+
+function fecharPlanoControle(){
+  document.getElementById('modal-pc-2751').style.display='none';
+}
+
+function pcRenderStep(){
+  const passos = PC_PLANOS[pcState.pn];
+  const step = passos[pcState.step];
+  const total = pcState.total;
+  const stepNum = pcState.step + 1;
+
+  document.getElementById('pc-step-label-top').textContent = `Passo ${stepNum} de ${total}`;
+  document.getElementById('pc-step-counter').textContent = `${stepNum} / ${total}`;
+  document.getElementById('pc-progress-bar').style.width = `${(stepNum/total)*100}%`;
+  document.getElementById('pc-btn-prev').style.display = pcState.step > 0 ? '' : 'none';
+
+  const isLast = pcState.step === total - 1;
+  const nextBtn = document.getElementById('pc-btn-next');
+  nextBtn.textContent = isLast ? '✔ Confirmar' : 'Próximo →';
+
+  const val = pcState.respostas[step.campo];
+
+  let html = `<div class="pc-step-label">Passo ${stepNum} de ${total}</div>
+    <div class="pc-step-question">${step.label}</div>`;
+  if(step.sublabel) html += `<div class="pc-step-code">${step.sublabel}</div>`;
+
+  if(step.tipo==='numero'){
+    html += `<input class="pc-input-big" type="tel" inputmode="numeric" id="pc-field" value="${val||''}" placeholder="${step.placeholder||''}" oninput="pcSaveField()" autocomplete="off"/>`;
+    nextBtn.disabled = false;
+  } else if(step.tipo==='select'){
+    html += `<select class="pc-select-big" id="pc-field" onchange="pcSaveField()">
+      <option value="">Selecione...</option>
+      ${step.opcoes.map(o=>`<option value="${o}" ${val===o?'selected':''}>${o}</option>`).join('')}
+    </select>`;
+    nextBtn.disabled = !val;
+  } else if(step.tipo==='oknok'){
+    const isOk = val==='OK';
+    const isNok = val==='NOK';
+    html += `<div class="pc-oknok">
+      <button class="pc-btn-ok ${isOk?'selected':''} ${isNok?'dimmed':''}" onclick="pcSetOkNok('OK')">✔ OK</button>
+      <button class="pc-btn-nok ${isNok?'selected':''} ${isOk?'dimmed':''}" onclick="pcSetOkNok('NOK')">✕ NOK</button>
+    </div>
+    <div class="pc-nok-alert" id="pc-nok-alert" style="${isNok?'display:block':'display:none'}">
+      ⚠ Atenção: Característica não conforme! Registre a tratativa nos campos finais.
+    </div>`;
+    nextBtn.disabled = !val;
+  } else if(step.tipo==='texto'){
+    html += `<textarea class="pc-text-big" id="pc-field" placeholder="${step.placeholder||''}" oninput="pcSaveField()">${val||''}</textarea>`;
+    nextBtn.disabled = false;
+  }
+
+  document.getElementById('pc-body').innerHTML = html;
+
+  // Foco automático
+  const field = document.getElementById('pc-field');
+  if(field) setTimeout(()=>field.focus(), 100);
+}
+
+function pcSaveField(){
+  const passos = PC_PLANOS[pcState.pn];
+  const step = passos[pcState.step];
+  const field = document.getElementById('pc-field');
+  if(!field) return;
+  pcState.respostas[step.campo] = field.value;
+  if(step.tipo==='select'){
+    document.getElementById('pc-btn-next').disabled = !field.value;
+  }
+}
+
+function pcSetOkNok(valor){
+  const passos = PC_PLANOS[pcState.pn];
+  const step = passos[pcState.step];
+  pcState.respostas[step.campo] = valor;
+  document.getElementById('pc-btn-next').disabled = false;
+  // Re-renderiza para refletir seleção visual
+  pcRenderStep();
+}
+
+function pcNext(){
+  const passos = PC_PLANOS[pcState.pn];
+  const step = passos[pcState.step];
+
+  // Salva campo de texto/número antes de avançar
+  const field = document.getElementById('pc-field');
+  if(field && (step.tipo==='numero'||step.tipo==='texto')){
+    pcState.respostas[step.campo] = field.value;
+  }
+
+  if(pcState.step < pcState.total - 1){
+    pcState.step++;
+    pcRenderStep();
+  } else {
+    pcConfirmar();
+  }
+}
+
+function pcPrev(){
+  if(pcState.step > 0){
+    pcState.step--;
+    pcRenderStep();
+  }
+}
+
+function pcConfirmar(){
+  // Armazena os dados do plano no estado global para incluir no apontamento
+  const temNok = Object.entries(pcState.respostas).some(([k,v])=>v==='NOK');
+  window._pcDados = { pn: pcState.pn, dados: {...pcState.respostas}, temNok };
+  fecharPlanoControle();
+  if(temNok){
+    // Avisa visualmente mas não bloqueia
+    const alert = document.createElement('div');
+    alert.className='alert alert-error';
+    alert.style.cssText='position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:900;max-width:400px;text-align:center;box-shadow:0 4px 16px rgba(0,0,0,0.2)';
+    alert.textContent='⚠ Plano de Controle: peça com característica NOK registrada!';
+    document.body.appendChild(alert);
+    setTimeout(()=>alert.remove(), 4000);
   }
 }
 
