@@ -236,6 +236,7 @@
     .def-item{flex-wrap:wrap;}
   }
 </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
 
@@ -311,7 +312,7 @@
           </div>
           <div class="form-group">
             <label>Cartão de Controle</label>
-            <input type="text" id="ap-cartao" placeholder="Ex: 1234" maxlength="4" inputmode="numeric" oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)" />
+            <input type="text" id="ap-cartao" placeholder="Ex: 1234-A" />
           </div>
           <div class="form-group"><label>Qtd. Inspecionada</label><input type="number" id="ap-qtd-total" placeholder="0" min="0" /></div>
           <div class="form-group"><label>Qtd. Não Conforme</label><input type="number" id="ap-qtd-nc" placeholder="0" min="0" /></div>
@@ -326,15 +327,19 @@
             <div class="defeitos-tags" id="defeitos-tags-preview"></div>
           </div>
 
-          <!-- OBSERVAÇÕES COM RESPOSTAS RÁPIDAS -->
+          <!-- OBSERVAÇÕES COM LISTA SUSPENSA -->
           <div class="form-group">
-            <label>Observações</label>
-            <div class="obs-quick-options">
-              <label class="obs-quick-chip"><input type="checkbox" class="obs-quick-checkbox" value="Peça separada para análise dos inspetores"/> Peça separada para análise dos inspetores</label>
-              <label class="obs-quick-chip"><input type="checkbox" class="obs-quick-checkbox" value="Segregado todo o lote"/> Segregado todo o lote</label>
-              <label class="obs-quick-chip"><input type="checkbox" class="obs-quick-checkbox" value="Liderança informada"/> Liderança informada</label>
-            </div>
-            <textarea id="ap-obs" placeholder="Outras informações adicionais (opcional)"></textarea>
+            <label>Observações rápidas</label>
+            <select id="ap-obs-select">
+              <option value="">Selecione uma opção...</option>
+              <option value="Peça separada para análise dos inspetores">Peça separada para análise dos inspetores</option>
+              <option value="Segregado todo o lote">Segregado todo o lote</option>
+              <option value="Liderança informada">Liderança informada</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Observações adicionais</label>
+            <textarea id="ap-obs" placeholder="Outras informações (opcional)"></textarea>
           </div>
         </div>
         <div style="display:flex;gap:10px;">
@@ -345,24 +350,14 @@
 
       <div class="card">
         <div class="card-title">Apontamentos deste turno</div>
-        <div class="filters">
-          <div class="filter-date-group">
-            <label class="filter-date-label">De</label>
-            <input type="date" id="turno-data-ini"/>
-          </div>
-          <div class="filter-date-group">
-            <label class="filter-date-label">Até</label>
-            <input type="date" id="turno-data-fim"/>
-          </div>
-          <input type="text" id="turno-pn-filter" placeholder="Filtrar PN..." style="width:130px"/>
-          <button class="btn btn-secondary btn-sm" onclick="renderTurnoTable()">Filtrar</button>
-          <button class="btn btn-secondary btn-sm" onclick="limparFiltroTurno()">Limpar</button>
-        </div>
         <div class="table-wrap"><table>
           <thead><tr><th>PN</th><th>Cliente</th><th>Insp.</th><th>NC</th><th>Defeitos</th><th>Hora</th></tr></thead>
           <tbody id="turno-tbody"></tbody>
           <tfoot id="turno-tfoot"></tfoot>
         </table></div>
+        <div style="margin-top:16px;text-align:right;">
+          <button class="btn btn-secondary" onclick="gerarPDF()">📄 Gerar Boletim PDF</button>
+        </div>
       </div>
     </div>
 
@@ -1018,6 +1013,159 @@ function doLogin(){
   }
 }
 
+function gerarPDF(){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
+
+  const hoje = new Date().toLocaleDateString('pt-BR');
+  const inspetor = state.currentUser?.nome || '—';
+
+  // Filtra apontamentos do inspetor de hoje
+  const meus = state.apontamentos.filter(a =>
+    normalizeRE(a.re) === normalizeRE(state.currentUser.re) && a.data === hoje
+  );
+
+  // Consolida por PN
+  const consolidado = {};
+  meus.forEach(a => {
+    if(!consolidado[a.pn]) consolidado[a.pn] = {
+      pn: a.pn, cliente: a.cliente, qtdTotal: 0, qtdNC: 0, defeitos: {}
+    };
+    consolidado[a.pn].qtdTotal += a.qtdTotal;
+    consolidado[a.pn].qtdNC += a.qtdNC;
+    if(a.defeitos) Object.entries(a.defeitos).forEach(([cod, info]) => {
+      const qty = (typeof info === 'object') ? (info.qty || 0) : (info || 0);
+      const d = ALL_DEFS.find(x => x.cod === cod);
+      const nome = d ? d.desc : cod;
+      if(!consolidado[a.pn].defeitos[nome]) consolidado[a.pn].defeitos[nome] = 0;
+      consolidado[a.pn].defeitos[nome] += qty;
+    });
+  });
+
+  const rows = Object.values(consolidado);
+
+  // ── LOGO ──
+  const logoImg = document.querySelector('.login-logo img')?.src || document.querySelector('.header-logo img')?.src;
+  if(logoImg) {
+    doc.addImage(logoImg, 'PNG', 14, 10, 22, 18);
+  }
+
+  // ── CABEÇALHO ──
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(13);
+  doc.text('Boletim de Apontamento de Inspeção — QSS', 40, 16);
+
+  doc.setFont('helvetica','normal');
+  doc.setFontSize(9);
+  doc.text(`Inspetor: ${inspetor}`, 40, 22);
+  doc.text(`Data: ${hoje}`, 40, 27);
+  doc.text(`Turno: ${state.currentUser?.turno || '—'}`, 100, 22);
+  doc.text(`Total de registros: ${meus.length}`, 100, 27);
+
+  // Linha separadora
+  doc.setDrawColor(30, 58, 92);
+  doc.setLineWidth(0.5);
+  doc.line(14, 31, 196, 31);
+
+  // ── TABELA ──
+  let y = 38;
+  const colWidths = [20, 35, 25, 20, 88];
+  const headers = ['PN', 'Cliente', 'Inspecionado', 'NC', 'Defeitos encontrados'];
+  const startX = 14;
+
+  // Cabeçalho da tabela
+  doc.setFillColor(30, 58, 92);
+  doc.rect(startX, y - 5, 182, 8, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(9);
+  let xPos = startX + 2;
+  headers.forEach((h, i) => {
+    doc.text(h, xPos, y);
+    xPos += colWidths[i];
+  });
+
+  y += 6;
+  doc.setTextColor(0, 0, 0);
+  doc.setFont('helvetica','normal');
+  doc.setFontSize(8.5);
+
+  let totalInsp = 0, totalNC = 0;
+  let filledRows = 0;
+
+  rows.forEach((r, idx) => {
+    const defText = Object.entries(r.defeitos)
+      .map(([nome, qty]) => `${nome} (${qty} pç)`)
+      .join(', ') || '—';
+
+    const defLines = doc.splitTextToSize(defText, colWidths[4] - 2);
+    const rowH = Math.max(7, defLines.length * 4.5);
+
+    if(y + rowH > 275) {
+      doc.addPage();
+      y = 20;
+    }
+
+    // Zebra
+    if(idx % 2 === 0) {
+      doc.setFillColor(240, 244, 248);
+      doc.rect(startX, y - 4.5, 182, rowH, 'F');
+    }
+
+    xPos = startX + 2;
+    const midY = y + (rowH - 7) / 2;
+    doc.text(r.pn, xPos, midY); xPos += colWidths[0];
+    doc.text(r.cliente, xPos, midY); xPos += colWidths[1];
+    doc.text(String(r.qtdTotal), xPos, midY); xPos += colWidths[2];
+
+    if(r.qtdNC > 0) {
+      doc.setTextColor(162, 45, 45);
+      doc.setFont('helvetica','bold');
+    }
+    doc.text(String(r.qtdNC), xPos, midY);
+    doc.setTextColor(0, 0, 0);
+    doc.setFont('helvetica','normal');
+    xPos += colWidths[3];
+
+    doc.text(defLines, xPos, y);
+    y += rowH + 1;
+
+    totalInsp += r.qtdTotal;
+    totalNC += r.qtdNC;
+    filledRows++;
+  });
+
+  if(rows.length === 0) {
+    doc.setTextColor(120,120,120);
+    doc.text('Nenhum apontamento registrado hoje.', startX + 2, y);
+    y += 8;
+    doc.setTextColor(0,0,0);
+  }
+
+  // Linha totais
+  doc.setDrawColor(30, 58, 92);
+  doc.setLineWidth(0.3);
+  doc.line(startX, y, 196, y);
+  y += 5;
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(9);
+  doc.text('TOTAL', startX + 2, y);
+  doc.text(String(totalInsp), startX + colWidths[0] + colWidths[1] + 2, y);
+  doc.setTextColor(162, 45, 45);
+  doc.text(String(totalNC), startX + colWidths[0] + colWidths[1] + colWidths[2] + 2, y);
+  doc.setTextColor(0, 0, 0);
+
+  // Rodapé
+  y += 12;
+  doc.setFont('helvetica','normal');
+  doc.setFontSize(7.5);
+  doc.setTextColor(120,120,120);
+  doc.text('Martinrea Honsel Brasil — CS1 Apontamento de Inspeção', 14, 290);
+  doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 140, 290);
+
+  doc.save(`Boletim_QSS_${hoje.replace(/\//g,'-')}.pdf`);
+}
+
 function doLogout(){
   clearInterval(state.timerInterval); state.currentUser=null;
   document.getElementById('login-re').value=''; document.getElementById('login-senha').value='';
@@ -1062,10 +1210,11 @@ async function registrarApontamento(){
     return;
   }
 
-  // Monta observações: chips selecionados + texto livre
-  const chipsSelecionados = Array.from(document.querySelectorAll('.obs-quick-checkbox:checked')).map(c=>c.value);
+  // Monta observações: select rápido + texto livre
+  const obsSelect = document.getElementById('ap-obs-select').value;
   const textoLivre = document.getElementById('ap-obs').value.trim();
-  const obsPartes = [...chipsSelecionados];
+  const obsPartes = [];
+  if(obsSelect) obsPartes.push(obsSelect);
   if(textoLivre) obsPartes.push(textoLivre);
   const obsFinal = obsPartes.join(' | ');
 
@@ -1097,7 +1246,7 @@ async function registrarApontamento(){
 function limparForm(){
   ['ap-pn','ap-cartao','ap-qtd-total','ap-qtd-nc','ap-obs'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('ap-cliente').value='';
-  document.querySelectorAll('.obs-quick-checkbox').forEach(c=>{c.checked=false;c.closest('.obs-quick-chip').classList.remove('checked');});
+  document.getElementById('ap-obs-select').value='';
   hideEl('ap-cliente-msg');
   limparDefeitos();
 }
@@ -1127,19 +1276,11 @@ function onPnInput(input){
 function renderTurnoTable(){
   const tbody=document.getElementById('turno-tbody');
   const tfoot=document.getElementById('turno-tfoot');
-
-  let meus=state.apontamentos.filter(a=>normalizeRE(a.re)===normalizeRE(state.currentUser.re));
-
-  const ini=document.getElementById('turno-data-ini')?.value;
-  const fim=document.getElementById('turno-data-fim')?.value;
-  const pnFiltro=document.getElementById('turno-pn-filter')?.value?.toLowerCase();
-
-  if(ini) meus=meus.filter(a=>parseData(a.data)>=new Date(ini));
-  if(fim) meus=meus.filter(a=>parseData(a.data)<=new Date(fim+'T23:59:59'));
-  if(pnFiltro) meus=meus.filter(a=>a.pn.toLowerCase().includes(pnFiltro));
+  const hoje=new Date().toLocaleDateString('pt-BR');
+  const meus=state.apontamentos.filter(a=>normalizeRE(a.re)===normalizeRE(state.currentUser.re)&&a.data===hoje);
 
   if(!meus.length){
-    tbody.innerHTML='<tr><td colspan="6"><div class="empty"><div class="empty-icon">📋</div><p>Nenhum apontamento encontrado.</p></div></td></tr>';
+    tbody.innerHTML='<tr><td colspan="6"><div class="empty"><div class="empty-icon">📋</div><p>Nenhum apontamento hoje ainda.</p></div></td></tr>';
     tfoot.innerHTML='';
     return;
   }
@@ -1156,19 +1297,11 @@ function renderTurnoTable(){
   const totalNC=meus.reduce((s,a)=>s+a.qtdNC,0);
   tfoot.innerHTML=`
     <tr style="font-weight:700;background:var(--gray-100);border-top:2px solid var(--gray-300)">
-      <td colspan="2" style="text-align:right;padding:10px 12px">Total filtrado:</td>
+      <td colspan="2" style="text-align:right;padding:10px 12px">Total do dia:</td>
       <td style="padding:10px 12px">${totalInsp}</td>
       <td style="padding:10px 12px"><span class="badge badge-red">${totalNC}</span></td>
       <td colspan="2"></td>
     </tr>`;
-}
-
-function limparFiltroTurno(){
-  ['turno-data-ini','turno-data-fim','turno-pn-filter'].forEach(id=>{
-    const el=document.getElementById(id);
-    if(el) el.value='';
-  });
-  renderTurnoTable();
 }
 
 function renderDefTags(defeitos){
