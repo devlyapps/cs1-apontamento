@@ -110,7 +110,19 @@
   .hbar-label{font-size:13px;font-weight:700;color:var(--gray-700);text-align:right;}
   .hbar-track{background:var(--gray-100);border-radius:5px;height:22px;overflow:hidden;position:relative;}
   .hbar-fill{height:100%;background:linear-gradient(90deg,var(--red) 0%,var(--steel) 100%);border-radius:5px;transition:width 0.6s ease;min-width:4px;position:relative;}
-  .hbar-nc-segment{position:absolute;top:0;right:0;height:100%;background:#E8A93B;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:var(--red-dark);min-width:18px;}
+  .hbar-nc-segment{position:absolute;top:0;right:0;height:100%;background:#E8A93B;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:var(--red-dark);min-width:18px;cursor:pointer;border-radius:0 5px 5px 0;}
+  .hbar-nc-segment:hover{background:#D49620;}
+
+  /* POPUP DEFEITOS POR CLIENTE */
+  .nc-popup-overlay{position:fixed;inset:0;z-index:500;background:rgba(0,0,0,0.18);}
+  .nc-popup{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--white);border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,0.18);padding:20px 24px;min-width:280px;max-width:360px;z-index:501;}
+  .nc-popup-title{font-size:13px;font-weight:700;color:var(--red-dark);margin-bottom:4px;}
+  .nc-popup-sub{font-size:11px;color:var(--gray-500);margin-bottom:14px;}
+  .nc-popup-row{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--gray-100);font-size:13px;}
+  .nc-popup-row:last-child{border-bottom:none;}
+  .nc-popup-badge{background:#E8A93B;color:var(--red-dark);font-weight:800;font-size:11px;padding:2px 8px;border-radius:10px;}
+  .nc-popup-close{position:absolute;top:10px;right:14px;font-size:18px;cursor:pointer;color:var(--gray-500);font-weight:700;line-height:1;}
+  .nc-popup-close:hover{color:var(--black);}
   .hbar-value{font-size:13px;font-weight:700;color:var(--black);}
 
   .funnel-chart{display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 4px;}
@@ -399,7 +411,14 @@
     <!-- HISTÓRICO -->
     <div id="tab-historico" class="tab-content">
       <div class="filters">
-        <input type="date" id="h-data"/>
+        <div class="filter-date-group">
+          <label class="filter-date-label">De</label>
+          <input type="date" id="h-data-ini"/>
+        </div>
+        <div class="filter-date-group">
+          <label class="filter-date-label">Até</label>
+          <input type="date" id="h-data-fim"/>
+        </div>
         <select id="h-cli"><option value="">Todos os clientes</option><option>ZF</option><option>EATON</option><option>AAM</option><option>GM</option><option>SCANIA</option><option>MBB</option><option>MWM</option><option>VOLVO</option><option>Outro</option></select>
         <select id="h-turno"><option value="">Todos os turnos</option><option value="T1">T1</option><option value="T2">T2</option><option value="T3">T3</option></select>
         <input type="text" id="h-pn" placeholder="Filtrar PN..." style="width:130px"/>
@@ -977,6 +996,38 @@ function updateTriggerPreview(){
   }).join('');
 }
 
+function abrirPopupNC(cliente){
+  const v = window._clienteDefData?.[cliente];
+  if(!v) return;
+
+  const defs = Object.entries(v.defeitos).sort((a,b)=>b[1]-a[1]);
+  const defRows = defs.length
+    ? defs.map(([nome,qty])=>`
+        <div class="nc-popup-row">
+          <span>${nome}</span>
+          <span class="nc-popup-badge">${qty} pç</span>
+        </div>`).join('')
+    : '<div class="nc-popup-row" style="color:var(--gray-500)">Sem defeitos registrados</div>';
+
+  const html = `
+    <div class="nc-popup-overlay" onclick="fecharPopupNC()"></div>
+    <div class="nc-popup">
+      <span class="nc-popup-close" onclick="fecharPopupNC()">✕</span>
+      <div class="nc-popup-title">⚠ ${cliente} — ${v.nc} NC</div>
+      <div class="nc-popup-sub">Defeitos encontrados no período filtrado</div>
+      ${defRows}
+    </div>`;
+
+  let el = document.getElementById('nc-popup-container');
+  if(!el){ el=document.createElement('div'); el.id='nc-popup-container'; document.body.appendChild(el); }
+  el.innerHTML = html;
+}
+
+function fecharPopupNC(){
+  const el = document.getElementById('nc-popup-container');
+  if(el) el.innerHTML = '';
+}
+
 function updateDefeitoSelects(){
   const opts='<option value="">Todos os defeitos</option>'+ALL_DEFS.map(d=>`<option value="${d.cod}">${d.desc}</option>`).join('');
   document.getElementById('dash-def').innerHTML=opts;
@@ -1362,16 +1413,32 @@ function renderDashboard(){
       </div>`;
     }).join('')+`</div>`;
 
-  // Por Cliente — Barras Horizontais
+  // Por Cliente — Barras Horizontais com popup de defeitos
   const clientes={};
-  data.forEach(a=>{if(!clientes[a.cliente])clientes[a.cliente]={total:0,nc:0};clientes[a.cliente].total+=a.qtdTotal;clientes[a.cliente].nc+=a.qtdNC;});
+  data.forEach(a=>{
+    if(!clientes[a.cliente]) clientes[a.cliente]={total:0,nc:0,defeitos:{}};
+    clientes[a.cliente].total+=a.qtdTotal;
+    clientes[a.cliente].nc+=a.qtdNC;
+    if(a.defeitos) Object.entries(a.defeitos).forEach(([cod,info])=>{
+      const qty=(typeof info==='object')?(info.qty||0):(info||0);
+      const d=ALL_DEFS.find(x=>x.cod===cod);
+      const nome=d?d.desc:cod;
+      if(!clientes[a.cliente].defeitos[nome]) clientes[a.cliente].defeitos[nome]=0;
+      clientes[a.cliente].defeitos[nome]+=qty;
+    });
+  });
   const clienteEntries=Object.entries(clientes).sort((a,b)=>b[1].total-a[1].total);
   const maxC=Math.max(...clienteEntries.map(([,v])=>v.total))||1;
+
+  // Guarda dados para o popup
+  window._clienteDefData = {};
+  clienteEntries.forEach(([c,v])=>{ window._clienteDefData[c]=v; });
+
   document.getElementById('cliente-bar-chart').innerHTML = clienteEntries.length ? `<div class="hbar-chart">`+
     clienteEntries.map(([c,v])=>{
       const w=((v.total/maxC)*100).toFixed(0);
       const ncPctDentroDaBarra = v.total ? ((v.nc/v.total)*100).toFixed(0) : 0;
-      const ncSegment = v.nc>0 ? `<div class="hbar-nc-segment" style="width:${ncPctDentroDaBarra}%" title="${v.nc} peças NC">${v.nc}</div>` : '';
+      const ncSegment = v.nc>0 ? `<div class="hbar-nc-segment" style="width:${ncPctDentroDaBarra}%" onclick="abrirPopupNC('${c}')">${v.nc}</div>` : '';
       return `<div class="hbar-row">
         <div class="hbar-label">${c}</div>
         <div class="hbar-track"><div class="hbar-fill" style="width:${w}%">${ncSegment}</div></div>
@@ -1489,12 +1556,14 @@ function updateInspetorSelect(){
 // ══ HISTÓRICO ══
 function renderHistorico(){
   let data=[...state.apontamentos];
-  const dt=document.getElementById('h-data').value;
+  const ini=document.getElementById('h-data-ini').value;
+  const fim=document.getElementById('h-data-fim').value;
   const cli=document.getElementById('h-cli').value;
   const turno=document.getElementById('h-turno').value;
   const pn=document.getElementById('h-pn').value.toLowerCase();
   const def=document.getElementById('h-def').value;
-  if(dt) data=data.filter(a=>{const d=parseData(a.data);const f=new Date(dt);return d.toDateString()===f.toDateString();});
+  if(ini) data=data.filter(a=>parseData(a.data)>=new Date(ini));
+  if(fim) data=data.filter(a=>parseData(a.data)<=new Date(fim+'T23:59:59'));
   if(cli) data=data.filter(a=>a.cliente===cli);
   if(turno) data=data.filter(a=>a.turno===turno);
   if(pn) data=data.filter(a=>a.pn.toLowerCase().includes(pn));
@@ -1534,7 +1603,7 @@ function renderHistorico(){
     </tr>`;
 }
 
-function limparHist(){['h-data','h-pn'].forEach(id=>document.getElementById(id).value='');document.getElementById('h-cli').value='';document.getElementById('h-turno').value='';document.getElementById('h-def').value='';renderHistorico();}
+function limparHist(){['h-data-ini','h-data-fim','h-pn'].forEach(id=>document.getElementById(id).value='');document.getElementById('h-cli').value='';document.getElementById('h-turno').value='';document.getElementById('h-def').value='';renderHistorico();}
 
 function openDeleteHistModal(id){
   state.deleteTarget=id;
@@ -1628,6 +1697,7 @@ document.querySelectorAll('.modal-overlay').forEach(el=>{
 function setScreen(n){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById('screen-'+n).classList.add('active');}
 let dashDateInitialized = false;
 let turnoDateInitialized = false;
+let histDateInitialized = false;
 
 function showTab(n){
   if(n==='dashboard' && (!state.currentUser || state.currentUser.perfil!=='admin')) return;
@@ -1655,7 +1725,15 @@ function showTab(n){
     }
     renderDashboard();
   }
-  if(n==='historico')renderHistorico();
+  if(n==='historico'){
+    if(!histDateInitialized){
+      const hojeISO = toISODate(new Date());
+      document.getElementById('h-data-ini').value = hojeISO;
+      document.getElementById('h-data-fim').value = hojeISO;
+      histDateInitialized = true;
+    }
+    renderHistorico();
+  }
   if(n==='admin')renderAdminTable();
 }
 
