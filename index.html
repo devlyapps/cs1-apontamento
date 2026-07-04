@@ -273,6 +273,18 @@
   .plano-id-badge{display:inline-flex;align-items:center;justify-content:center;background:var(--red);color:white;font-weight:800;font-size:14px;border-radius:999px;padding:6px 16px;align-self:flex-start;}
   .plano-foto-wrap{width:100%;border-radius:10px;overflow:hidden;border:2px solid var(--gray-300);background:#111;display:flex;align-items:center;justify-content:center;}
   .plano-foto-wrap img{width:100%;max-height:380px;display:block;object-fit:contain;}
+  .plano-topo-row{display:flex;gap:14px;align-items:stretch;}
+  .plano-foto-wrap-mini{flex:0 0 36%;max-width:190px;min-height:150px;border-radius:10px;overflow:hidden;border:2px solid var(--gray-300);background:#111;position:relative;cursor:zoom-in;display:flex;align-items:center;justify-content:center;}
+  .plano-foto-wrap-mini img{width:100%;height:100%;display:block;object-fit:contain;}
+  .plano-foto-zoom-hint{position:absolute;bottom:6px;right:6px;background:rgba(0,0,0,.6);color:#fff;font-size:13px;padding:5px 7px;border-radius:50%;line-height:1;}
+  .plano-descricao-lateral{flex:1;background:var(--gray-100);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;justify-content:center;}
+  .plano-info-value-grande{font-size:18px;font-weight:800;color:var(--black);line-height:1.35;}
+  .plano-especificacao-box{background:var(--gray-100);border-radius:10px;padding:16px 18px;}
+  .plano-especificacao-texto{font-size:19px;font-weight:700;color:var(--black);line-height:1.42;margin-top:6px;}
+  @media(max-width:520px){
+    .plano-topo-row{flex-direction:column;}
+    .plano-foto-wrap-mini{max-width:100%;min-height:180px;}
+  }
   .plano-info-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 16px;}
   .plano-info-item{background:var(--gray-100);border-radius:8px;padding:10px 14px;}
   .plano-info-item.full{grid-column:1 / -1;}
@@ -1845,13 +1857,21 @@ function pcRenderStep(){
     const foto = getFotoPlano(step.fotoKey);
     const html = `
       <div class="plano-id-badge">ID ${step.id}</div>
-      <div class="plano-foto-wrap" onclick="abrirFotoAmpliada('${foto}')" style="cursor:zoom-in;position:relative;">
-        <img src="${foto}" alt="Referência do defeito — item ${step.id}">
-        <div style="position:absolute;bottom:8px;right:8px;background:rgba(0,0,0,0.55);color:#fff;font-size:11px;padding:4px 10px;border-radius:999px;">🔍 Toque para ampliar</div>
+      <div class="plano-topo-row">
+        <div class="plano-foto-wrap-mini" onclick="abrirFotoAmpliada('${foto}')">
+          <img src="${foto}" alt="Referência do defeito — item ${step.id}">
+          <div class="plano-foto-zoom-hint">🔍</div>
+        </div>
+        <div class="plano-descricao-lateral">
+          <div class="plano-info-label">Descrição</div>
+          <div class="plano-info-value-grande">${step.label}</div>
+        </div>
+      </div>
+      <div class="plano-especificacao-box">
+        <div class="plano-info-label">Especificação</div>
+        <div class="plano-especificacao-texto">${step.especificacao}</div>
       </div>
       <div class="plano-info-grid">
-        <div class="plano-info-item full"><div class="plano-info-label">Descrição</div><div class="plano-info-value">${step.label}</div></div>
-        <div class="plano-info-item full"><div class="plano-info-label">Especificação</div><div class="plano-info-value">${step.especificacao}</div></div>
         <div class="plano-info-item"><div class="plano-info-label">Técnica de Avaliação</div><div class="plano-info-value">${step.tecnica}</div></div>
         <div class="plano-info-item"><div class="plano-info-label">Frequência</div><div class="plano-info-value">${step.freq}</div></div>
       </div>
