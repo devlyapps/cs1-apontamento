@@ -124,12 +124,7 @@
   .nc-popup-close{position:absolute;top:10px;right:14px;font-size:18px;cursor:pointer;color:var(--gray-500);font-weight:700;line-height:1;}
   .nc-popup-close:hover{color:var(--black);}
 
-  /* HUB DE CLIENTES */
-  .hub-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:8px;}
-  @media(max-width:600px){.hub-grid{grid-template-columns:repeat(2,1fr);}}
-  .hub-btn{padding:22px 10px;font-size:16px;font-weight:800;border:2px solid var(--red);border-radius:10px;background:var(--white);color:var(--red-dark);cursor:pointer;transition:all 0.15s;letter-spacing:0.5px;}
-  .hub-btn:hover,.hub-btn:active{background:var(--red-dark);color:white;transform:scale(0.98);}
-  .hub-btn.ativo{background:var(--red-dark);color:white;box-shadow:0 0 0 3px var(--red),0 0 0 6px rgba(27,58,92,0.15);}
+  /* PLANO DE VERIFICAÇÃO 100% */
   .card-title-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
   .card-title-row .card-title{margin-bottom:0;}
   .pn-sugestoes{background:var(--white);border:1.5px solid var(--gray-300);border-radius:6px;margin-top:4px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.1);}
@@ -403,35 +398,59 @@
         <div class="kpi yellow"><div class="kpi-label">Taxa NC</div><div class="kpi-value" id="kpi-pct">0%</div><div class="kpi-sub">% de rejeição</div></div>
       </div>
 
-      <!-- HUB DE CLIENTES -->
-      <div class="card" id="hub-clientes">
-        <div class="card-title">Selecione o Cliente</div>
-        <div class="hub-grid">
-          <button class="hub-btn" onclick="selecionarCliente('EATON')">EATON</button>
-          <button class="hub-btn" onclick="selecionarCliente('ZF')">ZF</button>
-          <button class="hub-btn" onclick="selecionarCliente('GM')">GM</button>
-          <button class="hub-btn" onclick="selecionarCliente('AAM')">AAM</button>
-          <button class="hub-btn" onclick="selecionarCliente('MWM')">MWM</button>
-          <button class="hub-btn" onclick="selecionarCliente('SCANIA')">SCANIA</button>
-          <button class="hub-btn" onclick="selecionarCliente('MBB')">MBB</button>
-          <button class="hub-btn" onclick="selecionarCliente('VOLVO')">VOLVO</button>
-        </div>
+      <!-- INICIAR INSPEÇÃO -->
+      <div class="card" id="card-iniciar-inspecao">
+        <button type="button" class="btn btn-plano" style="font-size:19px;padding:26px 10px;" onclick="iniciarInspecaoFluxo()">▶ INICIAR INSPEÇÃO</button>
       </div>
 
-      <!-- FORMULÁRIO (oculto até selecionar cliente) -->
+      <!-- CAPTURA PN + QUANTIDADE DA EMBALAGEM -->
+      <div class="card" id="card-pn-qtd" style="display:none">
+        <div class="card-title-row">
+          <div class="card-title">Nova Inspeção</div>
+          <button class="btn btn-secondary btn-sm" onclick="cancelarInspecaoFluxo()">✕ Cancelar</button>
+        </div>
+        <div class="form-col">
+          <div class="form-group">
+            <label>Nº da Peça (PN)</label>
+            <input type="text" id="insp-pn" placeholder="Ex: 2711" maxlength="4" inputmode="numeric" oninput="onInspPnInput(this)" autocomplete="off"/>
+            <div id="insp-pn-msg" style="font-size:11px;color:var(--red);margin-top:4px;display:none">PN não cadastrado. Verifique o número informado ou contate o Admin.</div>
+          </div>
+          <div class="form-group">
+            <label>Cliente</label>
+            <input type="text" id="insp-cliente" readonly />
+          </div>
+          <div class="form-group" id="insp-qtd-wrap" style="display:none">
+            <label>Quantidade de peças na embalagem</label>
+            <input type="number" id="insp-qtd" min="1" placeholder="0" oninput="onInspQtdInput()"/>
+          </div>
+        </div>
+        <button type="button" class="btn btn-plano" id="btn-insp-continuar" style="display:none" onclick="confirmarInspecaoInicio()">Continuar →</button>
+      </div>
+
+      <!-- FECHAMENTO DA EMBALAGEM (após inspecionar todas as peças) -->
+      <div class="card" id="card-fechar-embalagem" style="display:none">
+        <div class="card-title">Fechar Embalagem</div>
+        <p style="font-size:13px;color:var(--gray-500);margin-bottom:14px;">Todas as peças desta embalagem já foram inspecionadas. Confira o resultado e informe o cartão de controle para finalizar.</p>
+        <div id="fech-resumo"></div>
+        <div class="form-group">
+          <label>Nº do Cartão de Controle</label>
+          <input type="text" id="fech-cartao" placeholder="Ex: 1234-A"/>
+        </div>
+        <button type="button" class="btn btn-success" style="width:100%" onclick="finalizarEmbalagem()">✔ Finalizar e Registrar</button>
+      </div>
+
+      <!-- FORMULÁRIO CLÁSSICO (fallback para PNs sem Plano de Verificação 100% cadastrado) -->
       <div id="form-apontamento" style="display:none">
         <div class="card">
           <div class="card-title-row">
             <div class="card-title" id="form-cliente-titulo">Novo Apontamento</div>
-            <button class="btn btn-secondary btn-sm" onclick="voltarHub()">← Trocar cliente</button>
+            <button class="btn btn-secondary btn-sm" onclick="cancelarInspecaoFluxo()">✕ Cancelar</button>
           </div>
           <div id="ap-success" class="alert alert-success" style="display:none">✔ Apontamento registrado!</div>
           <div class="form-col">
             <div class="form-group">
               <label>Nº da Peça (PN)</label>
-              <input type="text" id="ap-pn" placeholder="Ex: 2711" maxlength="4" inputmode="numeric" oninput="onPnInput(this)" />
-              <div id="ap-pn-sugestoes" class="pn-sugestoes" style="display:none"></div>
-              <div id="ap-cliente-msg" style="font-size:11px;color:var(--red);margin-top:4px;display:none">PN não pertence a este cliente. Verifique o número.</div>
+              <input type="text" id="ap-pn" readonly />
             </div>
             <div class="form-group">
               <label>Cliente</label>
@@ -441,11 +460,7 @@
               <label>Cartão de Controle</label>
               <input type="text" id="ap-cartao" placeholder="Ex: 1234-A" />
             </div>
-            <div class="form-group"><label>Qtd. Inspecionada</label><input type="number" id="ap-qtd-total" placeholder="0" min="0" oninput="checkPlanoButton()" /></div>
-
-            <button type="button" class="btn btn-plano" id="btn-iniciar-plano" style="display:none" onclick="iniciarPlanoVerificacao()">📋 Iniciar Plano de Verificação 100%</button>
-            <div id="plano-resumo" style="display:none;font-size:12px;background:var(--gray-100);border-left:4px solid var(--steel);padding:8px 12px;border-radius:6px;margin-bottom:12px;"></div>
-
+            <div class="form-group"><label>Qtd. Inspecionada</label><input type="number" id="ap-qtd-total" readonly /></div>
             <div class="form-group"><label>Qtd. Não Conforme</label><input type="number" id="ap-qtd-nc" placeholder="0" min="0" oninput="onQtdNcInput(this)" /></div>
 
             <!-- DEFEITOS TRIGGER -->
@@ -688,10 +703,13 @@ const DEFEITOS = {
     {cod:'F8',desc:'Rebarba'},
     {cod:'F9',desc:'Rastreabilidade ausente'},
     {cod:'F10',desc:'Mistura de versão'},
+  ],
+  plano100:[
+    {cod:'P100',desc:'Reprovação — Plano de Verificação 100%'},
   ]
 };
 
-const ALL_DEFS = [...DEFEITOS.usinagem,...DEFEITOS.fundicao];
+const ALL_DEFS = [...DEFEITOS.usinagem,...DEFEITOS.fundicao,...DEFEITOS.plano100];
 
 const PN_CLIENTE = {
   '2020':'EATON',
@@ -1416,13 +1434,7 @@ async function registrarApontamento(){
   const cartao=document.getElementById('ap-cartao').value.trim();
   const qtdTotal=parseInt(document.getElementById('ap-qtd-total').value)||0;
   const qtdNC=parseInt(document.getElementById('ap-qtd-nc').value)||0;
-  if(pn.length!==4){alert('Informe um PN válido com 4 dígitos.');return;}
-  // Valida PN: se há cliente no Hub, checa se PN pertence a ele
-  if(clienteSelecionado){
-    if(PN_CLIENTE[pn]!==clienteSelecionado){alert(`PN ${pn} não pertence ao cliente ${clienteSelecionado}. Verifique o número informado.`);return;}
-  } else {
-    if(!cliente){alert('PN não cadastrado na lista de clientes. Verifique o número informado ou contate o Admin.');return;}
-  }
+  if(pn.length!==4 || !cliente){alert('Dados da inspeção inválidos. Reinicie a inspeção.');return;}
   if(!cartao){alert('Preencha o Cartão de Controle.');return;}
   if(qtdTotal===0){alert('Preencha a Qtd. Inspecionada.');return;}
 
@@ -1462,9 +1474,8 @@ async function registrarApontamento(){
   try{
     await apiPost('addApontamento', novoApontamento);
     state.apontamentos.push(novoApontamento);
-    limparForm(); renderTurnoTable(); renderTurnoKPIs(); showSaved();
-    const s=document.getElementById('ap-success');
-    s.style.display='block'; setTimeout(()=>s.style.display='none',2500);
+    renderTurnoTable(); renderTurnoKPIs(); showSaved();
+    cancelarInspecaoFluxo();
   }catch(e){
     alert('Erro ao salvar o apontamento. Verifique sua conexão e tente novamente.');
   }
@@ -1472,112 +1483,187 @@ async function registrarApontamento(){
 }
 
 function limparForm(){
-  ['ap-pn','ap-cartao','ap-qtd-total','ap-qtd-nc','ap-obs'].forEach(id=>document.getElementById(id).value='');
-  // Mantém o cliente se estiver no Hub
-  if(!clienteSelecionado) document.getElementById('ap-cliente').value='';
+  ['ap-cartao','ap-qtd-nc','ap-obs'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('ap-obs-select').value='';
-  hideEl('ap-cliente-msg');
-  const sug=document.getElementById('ap-pn-sugestoes');
-  if(sug) sug.style.display='none';
   limparDefeitos();
-  checkPlanoButton();
-  const resumo = document.getElementById('plano-resumo');
-  if(resumo){ resumo.style.display='none'; resumo.innerHTML=''; }
 }
 
-// ══ HUB DE CLIENTES ══
-let clienteSelecionado = '';
-
-function selecionarCliente(cliente){
-  clienteSelecionado = cliente;
-  // Destaca botão ativo
-  document.querySelectorAll('.hub-btn').forEach(b=>{
-    b.classList.toggle('ativo', b.textContent===cliente);
-  });
-  // Mostra formulário, oculta hub
-  document.getElementById('hub-clientes').style.display='none';
-  document.getElementById('form-apontamento').style.display='';
-  document.getElementById('form-cliente-titulo').textContent=`Novo Apontamento — ${cliente}`;
-  // Preenche e trava campo cliente
-  document.getElementById('ap-cliente').value = cliente;
-  // Limpa o formulário
-  limparForm();
-  // Foca no PN
-  setTimeout(()=>document.getElementById('ap-pn').focus(), 100);
-}
-
-function voltarHub(){
-  clienteSelecionado = '';
-  document.getElementById('form-apontamento').style.display='none';
-  document.getElementById('hub-clientes').style.display='';
-  limparForm();
-}
+// ══ FLUXO "INICIAR INSPEÇÃO" ══
+let inspecao = { pn:'', cliente:'', qtd:0, pecaAtual:0, pecas:[] };
 
 function onQtdNcInput(input){
   const val = parseInt(input.value)||0;
   if(val > 0) openDefeitosModal();
 }
 
-function onPnInput(input){
+function iniciarInspecaoFluxo(){
+  document.getElementById('card-iniciar-inspecao').style.display='none';
+  document.getElementById('card-pn-qtd').style.display='';
+  document.getElementById('insp-pn').value='';
+  document.getElementById('insp-cliente').value='';
+  document.getElementById('insp-qtd-wrap').style.display='none';
+  document.getElementById('insp-qtd').value='';
+  document.getElementById('btn-insp-continuar').style.display='none';
+  hideEl('insp-pn-msg');
+  setTimeout(()=>document.getElementById('insp-pn').focus(), 100);
+}
+
+function cancelarInspecaoFluxo(){
+  document.getElementById('card-pn-qtd').style.display='none';
+  document.getElementById('form-apontamento').style.display='none';
+  document.getElementById('card-fechar-embalagem').style.display='none';
+  document.getElementById('card-iniciar-inspecao').style.display='';
+  inspecao = { pn:'', cliente:'', qtd:0, pecaAtual:0, pecas:[] };
+}
+
+function onInspPnInput(input){
   input.value = input.value.replace(/\D/g,'').slice(0,4);
   const pn = input.value;
-  const clienteField = document.getElementById('ap-cliente');
-  const msgField = document.getElementById('ap-cliente-msg');
-  const sugestoesEl = document.getElementById('ap-pn-sugestoes');
-  checkPlanoButton();
-
-  // Se não tem cliente selecionado, comportamento antigo
-  if(!clienteSelecionado){
-    if(pn.length===4){
-      const cliente = PN_CLIENTE[pn];
-      if(cliente){ clienteField.value=cliente; hideEl('ap-cliente-msg'); }
-      else { clienteField.value=''; showEl('ap-cliente-msg'); }
-    } else { clienteField.value=''; hideEl('ap-cliente-msg'); }
-    if(sugestoesEl) sugestoesEl.style.display='none';
-    return;
-  }
-
-  // Com cliente selecionado: filtra PNs do cliente
-  hideEl('ap-cliente-msg');
-  if(sugestoesEl) sugestoesEl.style.display='none';
-
-  if(pn.length===0){ return; }
-
-  // Busca PNs do cliente que começam com o digitado
-  const pnsDoCliente = Object.entries(PN_CLIENTE)
-    .filter(([p,c])=>c===clienteSelecionado && p.startsWith(pn))
-    .map(([p])=>p);
+  const clienteField = document.getElementById('insp-cliente');
+  const qtdWrap = document.getElementById('insp-qtd-wrap');
+  const btnContinuar = document.getElementById('btn-insp-continuar');
 
   if(pn.length===4){
-    const clienteDoPN = PN_CLIENTE[pn];
-    if(clienteDoPN === clienteSelecionado){
-      hideEl('ap-cliente-msg');
-      if(sugestoesEl) sugestoesEl.style.display='none';
-      // Gatilho plano de controle
-      if(PC_PLANOS[pn]) abrirPlanoControle(pn);
+    const cliente = PN_CLIENTE[pn];
+    if(cliente){
+      clienteField.value = cliente;
+      hideEl('insp-pn-msg');
+      qtdWrap.style.display='';
+      setTimeout(()=>document.getElementById('insp-qtd').focus(), 100);
     } else {
-      showEl('ap-cliente-msg');
+      clienteField.value='';
+      showEl('insp-pn-msg');
+      qtdWrap.style.display='none';
+      btnContinuar.style.display='none';
     }
-  } else if(pnsDoCliente.length > 0 && pn.length >= 2){
-    // Mostra sugestões
-    if(sugestoesEl){
-      sugestoesEl.innerHTML = pnsDoCliente.slice(0,8).map(p=>
-        `<div class="pn-sugestao-item" onclick="selecionarPN('${p}')">${p}</div>`
-      ).join('');
-      sugestoesEl.style.display='';
-    }
+  } else {
+    clienteField.value='';
+    hideEl('insp-pn-msg');
+    qtdWrap.style.display='none';
+    btnContinuar.style.display='none';
+  }
+  onInspQtdInput();
+}
+
+function onInspQtdInput(){
+  const qtd = parseInt(document.getElementById('insp-qtd').value)||0;
+  const cliente = document.getElementById('insp-cliente').value;
+  document.getElementById('btn-insp-continuar').style.display = (cliente && qtd>0) ? '' : 'none';
+}
+
+function confirmarInspecaoInicio(){
+  const pn = document.getElementById('insp-pn').value;
+  const cliente = document.getElementById('insp-cliente').value;
+  const qtd = parseInt(document.getElementById('insp-qtd').value)||0;
+  if(!cliente || qtd<=0) return;
+
+  inspecao = { pn, cliente, qtd, pecaAtual:0, pecas:[] };
+  document.getElementById('card-pn-qtd').style.display='none';
+
+  if(PC_PLANOS_MANUAL[pn]){
+    // Plano de Verificação 100% — inspeciona peça por peça
+    proximaPecaInspecao();
+  } else if(PC_PLANOS[pn]){
+    // Plano de Controle "clássico" (ex: PN 2751) — aplica uma vez, depois cai no formulário
+    abrirPlanoControle(pn);
+  } else {
+    abrirFormularioClassico();
   }
 }
 
-function selecionarPN(pn){
-  document.getElementById('ap-pn').value = pn;
-  const sugestoesEl = document.getElementById('ap-pn-sugestoes');
-  if(sugestoesEl) sugestoesEl.style.display='none';
-  hideEl('ap-cliente-msg');
-  checkPlanoButton();
-  if(PC_PLANOS[pn]) abrirPlanoControle(pn);
-  // Foca no próximo campo
-  setTimeout(()=>document.getElementById('ap-cartao').focus(), 100);
+function abrirFormularioClassico(){
+  document.getElementById('ap-pn').value = inspecao.pn;
+  document.getElementById('ap-cliente').value = inspecao.cliente;
+  document.getElementById('ap-qtd-total').value = inspecao.qtd;
+  document.getElementById('ap-cartao').value='';
+  document.getElementById('ap-qtd-nc').value='';
+  document.getElementById('ap-obs').value='';
+  document.getElementById('ap-obs-select').value='';
+  limparDefeitos();
+  document.getElementById('form-cliente-titulo').textContent = `Novo Apontamento — ${inspecao.cliente}`;
+  document.getElementById('form-apontamento').style.display='';
+}
+
+// ── Peça a peça (Plano de Verificação 100%) ──
+function proximaPecaInspecao(){
+  inspecao.pecaAtual++;
+  if(inspecao.pecaAtual > inspecao.qtd){
+    fecharPlanoControle();
+    abrirFechamentoEmbalagem();
+    return;
+  }
+  const passos = PC_PLANOS_MANUAL[inspecao.pn];
+  pcState = { pn: inspecao.pn, step:0, respostas:{}, total:passos.length, __modoPeca:true };
+  document.getElementById('pc-modal-title').textContent = `📋 Plano de Verificação 100% — Peça ${inspecao.pecaAtual} de ${inspecao.qtd}`;
+  document.getElementById('pc-modal-box').classList.add('pc-modal-wide');
+  document.getElementById('modal-pc-2751').style.display='';
+  pcRenderStep();
+}
+
+function finalizarPeca(passos){
+  const itensFoto = passos.filter(p=>p.tipo==='foto-oknok');
+  const reprovados = itensFoto.filter(p=>pcState.respostas[p.campo]==='NOK');
+  const veredito = reprovados.length>0 ? 'NOK' : 'OK';
+  const detalhes = reprovados.map(p=>({id:p.id, label:p.label, desc:pcState.respostas[p.campo+'_desc']||''}));
+  inspecao.pecas.push({ numero: inspecao.pecaAtual, veredito, detalhes });
+  proximaPecaInspecao();
+}
+
+// ── Fechamento da embalagem ──
+function abrirFechamentoEmbalagem(){
+  const totalOk = inspecao.pecas.filter(p=>p.veredito==='OK').length;
+  const totalNok = inspecao.pecas.filter(p=>p.veredito==='NOK').length;
+  document.getElementById('fech-resumo').innerHTML = `
+    <div class="kpi-grid" style="margin-bottom:16px;">
+      <div class="kpi green"><div class="kpi-label">Peças OK</div><div class="kpi-value">${totalOk}</div></div>
+      <div class="kpi red"><div class="kpi-label">Peças NOK</div><div class="kpi-value">${totalNok}</div></div>
+    </div>`;
+  document.getElementById('fech-cartao').value='';
+  document.getElementById('card-fechar-embalagem').style.display='';
+}
+
+async function finalizarEmbalagem(){
+  const cartao = document.getElementById('fech-cartao').value.trim();
+  if(!cartao){ alert('Informe o número do Cartão de Controle.'); return; }
+
+  const totalNok = inspecao.pecas.filter(p=>p.veredito==='NOK').length;
+
+  const linhasObs = inspecao.pecas.filter(p=>p.veredito==='NOK').map(p=>{
+    const itens = p.detalhes.map(d=>`Item ${d.id} – ${d.label}: ${d.desc}`).join('; ');
+    return `Peça ${p.numero}: ${itens}`;
+  });
+  const obsFinal = linhasObs.length ? `[Plano de Verificação 100%]\n${linhasObs.join('\n')}` : '';
+
+  defSelecionados = {};
+  if(totalNok>0){
+    defSelecionados['P100'] = { qty: totalNok, rastreio: 'Plano de Verificação 100%' };
+  }
+
+  const now = new Date();
+  const novoApontamento = {
+    id: Date.now(),
+    data: now.toLocaleDateString('pt-BR'),
+    hora: now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),
+    inspetor: state.currentUser.nome, re: state.currentUser.re, turno: state.currentUser.turno,
+    pn: inspecao.pn, cliente: inspecao.cliente, cartao,
+    qtdTotal: inspecao.qtd, qtdNC: totalNok,
+    defeitos: {...defSelecionados},
+    obs: obsFinal
+  };
+
+  const btn=event?.target;
+  if(btn) btn.disabled=true;
+  try{
+    await apiPost('addApontamento', novoApontamento);
+    state.apontamentos.push(novoApontamento);
+    document.getElementById('card-fechar-embalagem').style.display='none';
+    document.getElementById('card-iniciar-inspecao').style.display='';
+    inspecao = { pn:'', cliente:'', qtd:0, pecaAtual:0, pecas:[] };
+    renderTurnoTable(); renderTurnoKPIs(); showSaved();
+  }catch(e){
+    alert('Erro ao registrar apontamento. Verifique sua conexão.');
+    if(btn) btn.disabled=false;
+  }
 }
 
 // ══ PLANO DE CONTROLE ══
@@ -1617,7 +1703,6 @@ const PC_PLANOS_MANUAL = {
     { tipo:'foto-oknok', id:1, campo:'zf2782_i1', fotoKey:'zf2782_i1', label:'Mistura de versão entre 2772 e 2782', especificacao:'2772 deve conter o código na lateral (081) e ter janela fechada', tecnica:'Visual', freq:'100%' },
     { tipo:'foto-oknok', id:2, campo:'zf2782_i2', fotoKey:'zf2782_i2', label:'Defeitos de fundição (1x1 245/20)', especificacao:'Peças isentas de TRINCA / QUEBRA', tecnica:'Visual', freq:'100%' },
     { tipo:'foto-oknok', id:3, campo:'zf2782_i3', fotoKey:'zf2782_i3', label:'Gravação / Rastreabilidade', especificacao:'Peças isentas de falta de gravação/rastreabilidade', tecnica:'Visual', freq:'100%' },
-    { tipo:'texto', id:4, campo:'zf2782_i4', label:'Registro de cada peça enviada no pallet', sublabel:'Inserir o número do cartão de contagem', placeholder:'Ex: 1234-A' },
     { tipo:'foto-oknok', id:5, campo:'zf2782_i5', fotoKey:'zf2782_i5', label:'Inspeção visual', especificacao:'Falta de furos / Falta de roscas / Falha de material / Trincas / Porosidade', tecnica:'Visual', freq:'100%' },
     { tipo:'foto-oknok', id:6, campo:'zf2782_i6', fotoKey:'zf2782_i6', label:'Inspeção visual', especificacao:'Aletas quebradas / danificadas / deformadas', tecnica:'Visual', freq:'100%' },
     { tipo:'foto-oknok', id:7, campo:'zf2782_i7', fotoKey:'zf2782_i7', label:'Verificação de rosca M24x1,5', especificacao:'Rosca aprovada no calibrador passa/não passa — peças isentas de rosca fora da especificação (M24x1,5)', tecnica:'Calibrador TR 0074', freq:'100%' },
@@ -1626,25 +1711,6 @@ const PC_PLANOS_MANUAL = {
 
 function pcPassos(){
   return PC_PLANOS_MANUAL[pcState.pn] || PC_PLANOS[pcState.pn];
-}
-
-function checkPlanoButton(){
-  const pn = document.getElementById('ap-pn').value.trim();
-  const qtd = document.getElementById('ap-qtd-total').value;
-  const btn = document.getElementById('btn-iniciar-plano');
-  if(!btn) return;
-  if(PC_PLANOS_MANUAL[pn]){
-    btn.style.display = '';
-    btn.disabled = !(qtd && Number(qtd) > 0);
-  } else {
-    btn.style.display = 'none';
-  }
-}
-
-function iniciarPlanoVerificacao(){
-  const pn = document.getElementById('ap-pn').value.trim();
-  if(!PC_PLANOS_MANUAL[pn]){ alert('Não há Plano de Verificação 100% cadastrado para este PN.'); return; }
-  abrirPlanoControle(pn);
 }
 
 let pcState = { pn:'', step:0, respostas:{}, total:0 };
@@ -1820,15 +1886,15 @@ function pcPrev(){
 
 function pcConfirmar(){
   const passos = pcPassos();
-  const isFotoPlano = passos.some(p=>p.tipo==='foto-oknok');
-  if(isFotoPlano){
-    finalizarPlanoVerificacao(passos);
+  if(pcState.__modoPeca){
+    finalizarPeca(passos);
     return;
   }
-  // Armazena os dados do plano no estado global para incluir no apontamento
+  // Plano de Controle "clássico" (ex: PN 2751): registra dados e segue para o formulário
   const temNok = Object.entries(pcState.respostas).some(([k,v])=>v==='NOK');
   window._pcDados = { pn: pcState.pn, dados: {...pcState.respostas}, temNok };
   fecharPlanoControle();
+  abrirFormularioClassico();
   if(temNok){
     // Avisa visualmente mas não bloqueia
     const alert = document.createElement('div');
@@ -1837,36 +1903,6 @@ function pcConfirmar(){
     alert.textContent='⚠ Plano de Controle: peça com característica NOK registrada!';
     document.body.appendChild(alert);
     setTimeout(()=>alert.remove(), 4000);
-  }
-}
-
-// ── Finalização do Plano de Verificação 100% (fotos) ──
-function finalizarPlanoVerificacao(passos){
-  const itensFoto = passos.filter(p=>p.tipo==='foto-oknok');
-  const reprovados = itensFoto.filter(p=>pcState.respostas[p.campo]==='NOK');
-  const qtdNok = reprovados.length;
-
-  fecharPlanoControle();
-
-  // Preenche automaticamente a Qtd. Não Conforme
-  const qtdNcField = document.getElementById('ap-qtd-nc');
-  qtdNcField.value = qtdNok;
-
-  const resumo = document.getElementById('plano-resumo');
-  resumo.style.display = '';
-
-  if(qtdNok > 0){
-    const linhas = reprovados.map(p => `Item ${p.id} – ${p.label}: ${pcState.respostas[p.campo+'_desc']||''}`);
-    const obsField = document.getElementById('ap-obs');
-    const bloco = `[Plano de Verificação 100%] Reprovações:\n${linhas.join('\n')}`;
-    obsField.value = obsField.value ? `${obsField.value}\n\n${bloco}` : bloco;
-
-    resumo.style.borderLeftColor = 'var(--red)';
-    resumo.innerHTML = `⚠ Plano de Verificação 100% concluído — <strong>${qtdNok} de ${itensFoto.length} itens reprovados (NOK)</strong>. Revise as Observações e selecione os Defeitos Encontrados correspondentes antes de registrar.`;
-    onQtdNcInput(qtdNcField);
-  } else {
-    resumo.style.borderLeftColor = 'var(--green)';
-    resumo.innerHTML = `✔ Plano de Verificação 100% concluído — todos os ${itensFoto.length} itens aprovados (OK).`;
   }
 }
 
