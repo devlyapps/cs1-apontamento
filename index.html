@@ -414,30 +414,6 @@
         <button type="button" class="btn btn-plano" style="font-size:19px;padding:26px 10px;" onclick="iniciarInspecaoFluxo()">▶ INICIAR INSPEÇÃO</button>
       </div>
 
-      <!-- CAPTURA PN + QUANTIDADE DA EMBALAGEM -->
-      <div class="card" id="card-pn-qtd" style="display:none">
-        <div class="card-title-row">
-          <div class="card-title">Nova Inspeção</div>
-          <button class="btn btn-secondary btn-sm" onclick="cancelarInspecaoFluxo()">✕ Cancelar</button>
-        </div>
-        <div class="form-col">
-          <div class="form-group">
-            <label>Nº da Peça (PN)</label>
-            <input type="text" id="insp-pn" placeholder="Ex: 2711" maxlength="4" inputmode="numeric" oninput="onInspPnInput(this)" autocomplete="off"/>
-            <div id="insp-pn-msg" style="font-size:11px;color:var(--red);margin-top:4px;display:none">PN não cadastrado. Verifique o número informado ou contate o Admin.</div>
-          </div>
-          <div class="form-group">
-            <label>Cliente</label>
-            <input type="text" id="insp-cliente" readonly />
-          </div>
-          <div class="form-group" id="insp-qtd-wrap" style="display:none">
-            <label>Quantidade de peças na embalagem</label>
-            <input type="number" id="insp-qtd" min="1" placeholder="0" oninput="onInspQtdInput()"/>
-          </div>
-        </div>
-        <button type="button" class="btn btn-plano" id="btn-insp-continuar" style="display:none" onclick="confirmarInspecaoInicio()">Continuar →</button>
-      </div>
-
       <!-- FECHAMENTO DA EMBALAGEM (após inspecionar todas as peças) -->
       <div class="card" id="card-fechar-embalagem" style="display:none">
         <div class="card-title">Fechar Embalagem</div>
@@ -640,6 +616,25 @@
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('modal-del')">Cancelar</button>
       <button class="btn btn-primary" style="width:auto;padding:10px 24px" onclick="confirmarDelete()">Remover</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL NOVA INSPEÇÃO (captura PN + Quantidade da embalagem, em tela cheia) -->
+<div id="modal-insp" style="display:none">
+  <div class="pc-overlay">
+    <div class="pc-modal" id="insp-modal-box">
+      <div class="pc-header">
+        <div class="pc-header-title">🧾 Nova Inspeção</div>
+        <div class="pc-header-sub" id="insp-step-label-top">Passo 1 de 2</div>
+      </div>
+      <div class="pc-progress"><div class="pc-progress-bar" id="insp-progress-bar" style="width:50%"></div></div>
+      <div class="pc-body" id="insp-body"></div>
+      <div class="pc-footer">
+        <button class="pc-btn-prev" id="insp-btn-prev" onclick="inspPrev()" style="display:none">← Voltar</button>
+        <button class="pc-btn-prev" id="insp-btn-cancelar" onclick="cancelarInspecaoFluxo()">✕ Cancelar</button>
+        <button class="pc-btn-next" id="insp-btn-next" onclick="inspNext()" disabled>Próximo →</button>
+      </div>
     </div>
   </div>
 </div>
@@ -1514,76 +1509,107 @@ function onQtdNcInput(input){
   if(val > 0) openDefeitosModal();
 }
 
+let inspStep = 0; // 0 = PN, 1 = Quantidade
+
 function iniciarInspecaoFluxo(){
-  document.getElementById('card-iniciar-inspecao').style.display='none';
-  document.getElementById('card-pn-qtd').style.display='';
-  document.getElementById('insp-pn').value='';
-  document.getElementById('insp-cliente').value='';
-  document.getElementById('insp-qtd-wrap').style.display='none';
-  document.getElementById('insp-qtd').value='';
-  document.getElementById('btn-insp-continuar').style.display='none';
-  hideEl('insp-pn-msg');
-  setTimeout(()=>document.getElementById('insp-pn').focus(), 100);
+  inspStep = 0;
+  document.getElementById('modal-insp').style.display='';
+  renderInspStep();
 }
 
 function cancelarInspecaoFluxo(){
-  document.getElementById('card-pn-qtd').style.display='none';
+  document.getElementById('modal-insp').style.display='none';
   document.getElementById('form-apontamento').style.display='none';
   document.getElementById('card-fechar-embalagem').style.display='none';
   document.getElementById('card-iniciar-inspecao').style.display='';
   inspecao = { pn:'', cliente:'', qtd:0, pecaAtual:0, pecas:[] };
 }
 
+function renderInspStep(){
+  const total = 2;
+  const stepNum = inspStep + 1;
+  document.getElementById('insp-step-label-top').textContent = `Passo ${stepNum} de ${total}`;
+  document.getElementById('insp-progress-bar').style.width = `${(stepNum/total)*100}%`;
+  document.getElementById('insp-btn-prev').style.display = inspStep > 0 ? '' : 'none';
+
+  const nextBtn = document.getElementById('insp-btn-next');
+  nextBtn.textContent = inspStep===1 ? '▶ Continuar' : 'Próximo →';
+
+  let html = '';
+  if(inspStep===0){
+    html = `
+      <div class="pc-step-label">Passo 1 de 2</div>
+      <div class="pc-step-question">Qual é o Nº da Peça (PN)?</div>
+      <input class="pc-input-big" type="tel" inputmode="numeric" id="insp-pn-field" maxlength="4" placeholder="Ex: 2711" autocomplete="off" oninput="onInspPnInput(this)" value="${inspecao.pn||''}"/>
+      <div id="insp-cliente-resultado" style="margin-top:18px;"></div>`;
+    nextBtn.disabled = !inspecao.cliente;
+  } else {
+    html = `
+      <div class="pc-step-label">Passo 2 de 2</div>
+      <div class="pc-step-question">Quantidade de peças na embalagem</div>
+      <div class="pc-step-code">PN ${inspecao.pn} · Cliente ${inspecao.cliente}</div>
+      <input class="pc-input-big" type="number" min="1" inputmode="numeric" id="insp-qtd-field" placeholder="0" oninput="onInspQtdInput(this)" value="${inspecao.qtd||''}"/>`;
+    nextBtn.disabled = !(inspecao.qtd>0);
+  }
+  document.getElementById('insp-body').innerHTML = html;
+
+  const field = document.getElementById(inspStep===0 ? 'insp-pn-field' : 'insp-qtd-field');
+  if(field) setTimeout(()=>field.focus(), 100);
+  if(inspStep===0) atualizarClienteResultado();
+}
+
 function onInspPnInput(input){
   input.value = input.value.replace(/\D/g,'').slice(0,4);
   const pn = input.value;
-  const clienteField = document.getElementById('insp-cliente');
-  const qtdWrap = document.getElementById('insp-qtd-wrap');
-  const btnContinuar = document.getElementById('btn-insp-continuar');
-
-  if(pn.length===4){
-    const cliente = PN_CLIENTE[pn];
-    if(cliente){
-      clienteField.value = cliente;
-      hideEl('insp-pn-msg');
-      qtdWrap.style.display='';
-      setTimeout(()=>document.getElementById('insp-qtd').focus(), 100);
-    } else {
-      clienteField.value='';
-      showEl('insp-pn-msg');
-      qtdWrap.style.display='none';
-      btnContinuar.style.display='none';
-    }
-  } else {
-    clienteField.value='';
-    hideEl('insp-pn-msg');
-    qtdWrap.style.display='none';
-    btnContinuar.style.display='none';
-  }
-  onInspQtdInput();
+  inspecao.pn = pn;
+  inspecao.cliente = (pn.length===4) ? (PN_CLIENTE[pn]||'') : '';
+  document.getElementById('insp-btn-next').disabled = !inspecao.cliente;
+  atualizarClienteResultado();
 }
 
-function onInspQtdInput(){
-  const qtd = parseInt(document.getElementById('insp-qtd').value)||0;
-  const cliente = document.getElementById('insp-cliente').value;
-  document.getElementById('btn-insp-continuar').style.display = (cliente && qtd>0) ? '' : 'none';
+function atualizarClienteResultado(){
+  const el = document.getElementById('insp-cliente-resultado');
+  if(!el) return;
+  const pn = inspecao.pn || '';
+  if(pn.length < 4){ el.innerHTML=''; return; }
+  if(inspecao.cliente){
+    el.innerHTML = `<div style="background:var(--green-light);border-left:4px solid var(--green);border-radius:8px;padding:16px 18px;font-size:20px;font-weight:800;color:var(--green);text-align:center;">Cliente: ${inspecao.cliente}</div>`;
+  } else {
+    el.innerHTML = `<div style="background:var(--red-light);border-left:4px solid var(--red);border-radius:8px;padding:16px 18px;font-size:15px;font-weight:600;color:var(--red-dark);text-align:center;">PN não cadastrado. Verifique o número informado ou contate o Admin.</div>`;
+  }
+}
+
+function onInspQtdInput(input){
+  inspecao.qtd = parseInt(input.value)||0;
+  document.getElementById('insp-btn-next').disabled = !(inspecao.qtd>0);
+}
+
+function inspNext(){
+  if(inspStep===0){
+    if(!inspecao.cliente) return;
+    inspStep = 1;
+    renderInspStep();
+  } else {
+    if(!(inspecao.qtd>0)) return;
+    confirmarInspecaoInicio();
+  }
+}
+
+function inspPrev(){
+  if(inspStep>0){ inspStep--; renderInspStep(); }
 }
 
 function confirmarInspecaoInicio(){
-  const pn = document.getElementById('insp-pn').value;
-  const cliente = document.getElementById('insp-cliente').value;
-  const qtd = parseInt(document.getElementById('insp-qtd').value)||0;
-  if(!cliente || qtd<=0) return;
+  document.getElementById('modal-insp').style.display='none';
+  inspecao.pecaAtual = 0;
+  inspecao.pecas = [];
 
-  inspecao = { pn, cliente, qtd, pecaAtual:0, pecas:[] };
-  document.getElementById('card-pn-qtd').style.display='none';
-
-  if(PC_PLANOS_MANUAL[pn]){
+  if(PC_PLANOS_MANUAL[inspecao.pn]){
     // Plano de Verificação 100% — inspeciona peça por peça
     proximaPecaInspecao();
-  } else if(PC_PLANOS[pn]){
+  } else if(PC_PLANOS[inspecao.pn]){
     // Plano de Controle "clássico" (ex: PN 2751) — aplica uma vez, depois cai no formulário
-    abrirPlanoControle(pn);
+    abrirPlanoControle(inspecao.pn);
   } else {
     abrirFormularioClassico();
   }
