@@ -271,8 +271,8 @@
   .plano-body{flex:1;overflow-y:auto;display:flex;justify-content:center;padding:22px;}
   .plano-card{background:var(--white);border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.08);max-width:640px;width:100%;padding:24px;display:flex;flex-direction:column;gap:16px;}
   .plano-id-badge{display:inline-flex;align-items:center;justify-content:center;background:var(--red);color:white;font-weight:800;font-size:14px;border-radius:999px;padding:6px 16px;align-self:flex-start;}
-  .plano-foto-wrap{width:100%;border-radius:10px;overflow:hidden;border:2px solid var(--gray-300);background:var(--gray-100);}
-  .plano-foto-wrap img{width:100%;display:block;max-height:340px;object-fit:cover;}
+  .plano-foto-wrap{width:100%;border-radius:10px;overflow:hidden;border:2px solid var(--gray-300);background:#111;display:flex;align-items:center;justify-content:center;}
+  .plano-foto-wrap img{width:100%;max-height:380px;display:block;object-fit:contain;}
   .plano-info-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 16px;}
   .plano-info-item{background:var(--gray-100);border-radius:8px;padding:10px 14px;}
   .plano-info-item.full{grid-column:1 / -1;}
@@ -1607,7 +1607,40 @@ function finalizarPeca(passos){
   const veredito = reprovados.length>0 ? 'NOK' : 'OK';
   const detalhes = reprovados.map(p=>({id:p.id, label:p.label, desc:pcState.respostas[p.campo+'_desc']||''}));
   inspecao.pecas.push({ numero: inspecao.pecaAtual, veredito, detalhes });
-  proximaPecaInspecao();
+  mostrarResumoPeca();
+}
+
+// ── Tela de resumo exibida após concluir cada peça ──
+function mostrarResumoPeca(){
+  const numero = inspecao.pecaAtual;
+  const qtd = inspecao.qtd;
+  const faltam = qtd - numero;
+  const ultima = faltam <= 0;
+  const veredito = inspecao.pecas[inspecao.pecas.length-1].veredito;
+  const isOk = veredito==='OK';
+
+  document.getElementById('pc-modal-title').textContent = `📋 Plano de Verificação 100%`;
+  document.getElementById('pc-step-label-top').textContent = `Peça ${numero} concluída`;
+  document.getElementById('pc-progress-bar').style.width = `${(numero/qtd)*100}%`;
+
+  document.getElementById('pc-body').innerHTML = `
+    <div style="text-align:center;padding:20px 10px;">
+      <div style="font-size:52px;margin-bottom:6px;">${isOk?'✔':'⚠'}</div>
+      <div style="font-size:19px;font-weight:800;color:${isOk?'var(--green)':'var(--red)'};margin-bottom:18px;">
+        Peça ${numero} inspecionada — ${veredito}
+      </div>
+      <div class="kpi-grid" style="margin-bottom:8px;">
+        <div class="kpi green"><div class="kpi-label">Inspecionadas</div><div class="kpi-value">${numero} / ${qtd}</div></div>
+        <div class="kpi ${ultima?'green':'yellow'}"><div class="kpi-label">${ultima?'Status':'Faltam'}</div><div class="kpi-value">${ultima?'Concluído':faltam}</div></div>
+      </div>
+    </div>
+    <button type="button" class="btn btn-plano" style="width:100%;" onclick="proximaPecaInspecao()">
+      ${ultima ? '✔ Finalizar embalagem →' : 'Iniciar próxima peça →'}
+    </button>`;
+
+  document.getElementById('pc-btn-prev').style.display = 'none';
+  document.getElementById('pc-btn-next').style.display = 'none';
+  document.getElementById('pc-step-counter').textContent = '';
 }
 
 // ── Fechamento da embalagem ──
@@ -1769,9 +1802,10 @@ function pcRenderStep(){
         <button class="plano-btn plano-btn-nok" style="${isOk?'opacity:.35':''}" onclick="pcSetOkNok('NOK')">✕ NOK</button>
       </div>`;
     document.getElementById('pc-body').innerHTML = html;
-    nextBtn.disabled = !val;
+    nextBtn.style.display = 'none';
     return;
   }
+  nextBtn.style.display = '';
 
   let html = `<div class="pc-step-label">Passo ${stepNum} de ${total}</div>
     <div class="pc-step-question">${step.label}</div>`;
@@ -1826,9 +1860,13 @@ function pcSetOkNok(valor){
   pcState.respostas[step.campo] = valor;
   document.getElementById('pc-btn-next').disabled = false;
 
-  // Itens do Plano de Verificação 100%: NOK exige alerta bloqueante + descrição do defeito
-  if(step.tipo==='foto-oknok' && valor==='NOK'){
-    abrirAlertaNok(step);
+  // Itens do Plano de Verificação 100%: avança sozinho (OK) ou abre alerta bloqueante (NOK)
+  if(step.tipo==='foto-oknok'){
+    if(valor==='NOK'){
+      abrirAlertaNok(step);
+    } else {
+      pcNext();
+    }
     return;
   }
   // Re-renderiza para refletir seleção visual
@@ -1857,7 +1895,7 @@ function salvarDescricaoNok(){
   const step = passos[pcState.step];
   pcState.respostas[step.campo+'_desc'] = val;
   document.getElementById('plano-alert-overlay').classList.remove('open');
-  pcRenderStep();
+  pcNext();
 }
 
 function pcNext(){
