@@ -1649,7 +1649,9 @@ function finalizarPeca(passos){
   const reprovados = itensFoto.filter(p=>pcState.respostas[p.campo]==='NOK');
   const veredito = reprovados.length>0 ? 'NOK' : 'OK';
   const detalhes = reprovados.map(p=>({id:p.id, label:p.label, desc:pcState.respostas[p.campo+'_desc']||''}));
-  inspecao.pecas.push({ numero: inspecao.pecaAtual, veredito, detalhes });
+  const rastreioStep = passos.find(p=>p.tipo==='rastreio');
+  const rastreio = rastreioStep ? (pcState.respostas[rastreioStep.campo]||'') : '';
+  inspecao.pecas.push({ numero: inspecao.pecaAtual, veredito, detalhes, rastreio });
   mostrarResumoPeca();
 }
 
@@ -1707,15 +1709,22 @@ async function finalizarEmbalagem(){
 
   const totalNok = inspecao.pecas.filter(p=>p.veredito==='NOK').length;
 
-  const linhasObs = inspecao.pecas.filter(p=>p.veredito==='NOK').map(p=>{
+  // Rastreabilidade de todas as peças inspecionadas nesta embalagem
+  const linhasRastreio = inspecao.pecas.map(p=>`Peça ${p.numero}: ${p.rastreio||'—'} (${p.veredito})`);
+  const blocoRastreio = `[Rastreabilidade das peças]\n${linhasRastreio.join('\n')}`;
+
+  const linhasReprovacao = inspecao.pecas.filter(p=>p.veredito==='NOK').map(p=>{
     const itens = p.detalhes.map(d=>`Item ${d.id} – ${d.label}: ${d.desc}`).join('; ');
-    return `Peça ${p.numero}: ${itens}`;
+    return `Peça ${p.numero} (Rastreio: ${p.rastreio||'—'}): ${itens}`;
   });
-  const obsFinal = linhasObs.length ? `[Plano de Verificação 100%]\n${linhasObs.join('\n')}` : '';
+  const blocoReprovacao = linhasReprovacao.length ? `\n\n[Plano de Verificação 100%] Reprovações:\n${linhasReprovacao.join('\n')}` : '';
+
+  const obsFinal = blocoRastreio + blocoReprovacao;
 
   defSelecionados = {};
   if(totalNok>0){
-    defSelecionados['P100'] = { qty: totalNok, rastreio: 'Plano de Verificação 100%' };
+    const rastreiosNok = inspecao.pecas.filter(p=>p.veredito==='NOK').map(p=>p.rastreio||'—').join(', ');
+    defSelecionados['P100'] = { qty: totalNok, rastreio: rastreiosNok };
   }
 
   const now = new Date();
@@ -1779,6 +1788,7 @@ function getFotoPlano(fotoKey){
 // Planos de Verificação 100% (acionados manualmente pelo botão, após informar a Qtd. Inspecionada)
 const PC_PLANOS_MANUAL = {
   '2782': [
+    { tipo:'rastreio', campo:'zf2782_rastreio', label:'Rastreabilidade da peça', sublabel:'Informe o datador/código de rastreabilidade gravado nesta peça', placeholder:'Ex: 030626161710' },
     { tipo:'foto-oknok', id:1, campo:'zf2782_i1', fotoKey:'zf2782_i1', label:'Mistura de versão entre 2772 e 2782', especificacao:'2772 deve conter o código na lateral (081) e ter janela fechada', tecnica:'Visual', freq:'100%' },
     { tipo:'foto-oknok', id:2, campo:'zf2782_i2', fotoKey:'zf2782_i2', label:'Defeitos de fundição (1x1 245/20)', especificacao:'Peças isentas de TRINCA / QUEBRA', tecnica:'Visual', freq:'100%' },
     { tipo:'foto-oknok', id:3, campo:'zf2782_i3', fotoKey:'zf2782_i3', label:'Gravação / Rastreabilidade', especificacao:'Peças isentas de falta de gravação/rastreabilidade', tecnica:'Visual', freq:'100%' },
@@ -1862,6 +1872,9 @@ function pcRenderStep(){
   if(step.tipo==='numero'){
     html += `<input class="pc-input-big" type="tel" inputmode="numeric" id="pc-field" value="${val||''}" placeholder="${step.placeholder||''}" oninput="pcSaveField()" autocomplete="off"/>`;
     nextBtn.disabled = false;
+  } else if(step.tipo==='rastreio'){
+    html += `<input class="pc-input-big" type="text" id="pc-field" value="${val||''}" placeholder="${step.placeholder||''}" oninput="pcSaveField()" autocomplete="off"/>`;
+    nextBtn.disabled = !val;
   } else if(step.tipo==='select'){
     html += `<select class="pc-select-big" id="pc-field" onchange="pcSaveField()">
       <option value="">Selecione...</option>
@@ -1897,8 +1910,8 @@ function pcSaveField(){
   const field = document.getElementById('pc-field');
   if(!field) return;
   pcState.respostas[step.campo] = field.value;
-  if(step.tipo==='select'){
-    document.getElementById('pc-btn-next').disabled = !field.value;
+  if(step.tipo==='select'||step.tipo==='rastreio'){
+    document.getElementById('pc-btn-next').disabled = !field.value.trim();
   }
 }
 
@@ -1981,7 +1994,7 @@ function pcNext(){
 
   // Salva campo de texto/número antes de avançar
   const field = document.getElementById('pc-field');
-  if(field && (step.tipo==='numero'||step.tipo==='texto')){
+  if(field && (step.tipo==='numero'||step.tipo==='texto'||step.tipo==='rastreio')){
     pcState.respostas[step.campo] = field.value;
   }
 
