@@ -297,7 +297,15 @@
 
   .plano-alert-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.72);z-index:2100;align-items:center;justify-content:center;padding:20px;}
   .plano-alert-overlay.open{display:flex;}
-  .plano-alert-box{background:white;border-radius:14px;max-width:440px;width:100%;padding:30px 26px;text-align:center;box-shadow:0 24px 80px rgba(0,0,0,0.4);}
+  .plano-alert-box{background:white;border-radius:14px;max-width:440px;width:100%;max-height:88vh;overflow-y:auto;padding:30px 26px;text-align:center;box-shadow:0 24px 80px rgba(0,0,0,0.4);}
+  .plano-area-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:6px;}
+  .plano-area-btn{padding:26px 10px;border:none;border-radius:12px;font-size:17px;font-weight:800;color:white;cursor:pointer;background:linear-gradient(135deg,#2A5C80,#1B3A5C);}
+  .plano-area-btn:active{transform:scale(.97);}
+  .plano-defeito-lista{display:flex;flex-direction:column;gap:8px;text-align:left;margin-top:6px;}
+  .plano-defeito-item{padding:14px 16px;border:1.5px solid var(--gray-300);border-radius:8px;background:var(--gray-100);font-size:14px;font-weight:600;cursor:pointer;}
+  .plano-defeito-item:active{background:var(--red-dim);}
+  .plano-defeito-item.outro{border-style:dashed;color:var(--gray-500);}
+  .plano-voltar-area{background:none;border:none;color:var(--gray-500);font-size:12px;text-decoration:underline;margin-top:14px;cursor:pointer;}
   .plano-alert-icon{font-size:52px;margin-bottom:10px;}
   .plano-alert-box h3{color:var(--red);font-size:19px;font-weight:800;margin-bottom:14px;}
   .plano-alert-box ul{text-align:left;font-size:14px;color:var(--gray-700);margin:0 0 20px;padding-left:20px;line-height:1.8;}
@@ -448,7 +456,7 @@
               <input type="text" id="ap-cartao" placeholder="Ex: 1234-A" />
             </div>
             <div class="form-group"><label>Qtd. Inspecionada</label><input type="number" id="ap-qtd-total" readonly /></div>
-            <div class="form-group"><label>Qtd. Não Conforme</label><input type="number" id="ap-qtd-nc" placeholder="0" min="0" oninput="onQtdNcInput(this)" /></div>
+            <div class="form-group"><label>Qtd. Não Conforme</label><input type="tel" inputmode="numeric" id="ap-qtd-nc" placeholder="0" oninput="onQtdNcInput(this)" /></div>
 
             <!-- DEFEITOS TRIGGER -->
             <div class="form-group">
@@ -672,15 +680,7 @@
       </ul>
       <button class="btn-plano-ciente" onclick="confirmarCienteNok()">Ciente — Continuar</button>
     </div>
-    <div id="plano-alert-step-desc" style="display:none">
-      <div class="plano-alert-icon">📝</div>
-      <h3>Descreva o defeito encontrado</h3>
-      <div class="plano-desc-wrap">
-        <label>Descrição do defeito</label>
-        <textarea id="plano-alert-desc-input" placeholder="Ex: trinca visível na aleta lateral esquerda"></textarea>
-        <button onclick="salvarDescricaoNok()">Confirmar e continuar</button>
-      </div>
-    </div>
+    <div id="plano-alert-step-desc" style="display:none"></div>
   </div>
 </div>
 
@@ -1548,7 +1548,7 @@ function renderInspStep(){
       <div class="pc-step-label">Passo 2 de 2</div>
       <div class="pc-step-question">Quantidade de peças na embalagem</div>
       <div class="pc-step-code">PN ${inspecao.pn} · Cliente ${inspecao.cliente}</div>
-      <input class="pc-input-big" type="number" min="1" inputmode="numeric" id="insp-qtd-field" placeholder="0" oninput="onInspQtdInput(this)" value="${inspecao.qtd||''}"/>`;
+      <input class="pc-input-big" type="tel" inputmode="numeric" id="insp-qtd-field" placeholder="0" oninput="onInspQtdInput(this)" value="${inspecao.qtd||''}"/>`;
     nextBtn.disabled = !(inspecao.qtd>0);
   }
   document.getElementById('insp-body').innerHTML = html;
@@ -1873,7 +1873,7 @@ function pcRenderStep(){
     html += `<input class="pc-input-big" type="tel" inputmode="numeric" id="pc-field" value="${val||''}" placeholder="${step.placeholder||''}" oninput="pcSaveField()" autocomplete="off"/>`;
     nextBtn.disabled = false;
   } else if(step.tipo==='rastreio'){
-    html += `<input class="pc-input-big" type="text" id="pc-field" value="${val||''}" placeholder="${step.placeholder||''}" oninput="pcSaveField()" autocomplete="off"/>`;
+    html += `<input class="pc-input-big" type="tel" inputmode="numeric" id="pc-field" value="${val||''}" placeholder="${step.placeholder||''}" oninput="pcSaveField()" autocomplete="off"/>`;
     nextBtn.disabled = !val;
   } else if(step.tipo==='select'){
     html += `<select class="pc-select-big" id="pc-field" onchange="pcSaveField()">
@@ -1968,22 +1968,65 @@ function abrirAlertaNok(step){
   document.getElementById('plano-alert-item-nome').textContent = `Item ${step.id} — ${step.label}`;
   document.getElementById('plano-alert-step-warning').style.display = '';
   document.getElementById('plano-alert-step-desc').style.display = 'none';
-  document.getElementById('plano-alert-desc-input').value = pcState.respostas[step.campo+'_desc'] || '';
   document.getElementById('plano-alert-overlay').classList.add('open');
 }
 
 function confirmarCienteNok(){
   document.getElementById('plano-alert-step-warning').style.display = 'none';
   document.getElementById('plano-alert-step-desc').style.display = '';
+  renderAreaSelecao();
+}
+
+// ── Passo 1: escolher a área de origem do defeito ──
+function renderAreaSelecao(){
+  document.getElementById('plano-alert-step-desc').innerHTML = `
+    <div class="plano-alert-icon">📝</div>
+    <h3>Qual a área de origem do defeito?</h3>
+    <div class="plano-area-row">
+      <button class="plano-area-btn" onclick="renderDefeitoLista('usinagem')">🔧 Usinagem</button>
+      <button class="plano-area-btn" onclick="renderDefeitoLista('fundicao')">🏭 Injeção</button>
+    </div>`;
+}
+
+// ── Passo 2: lista de defeitos da área escolhida ──
+function renderDefeitoLista(area){
+  const nomeArea = area==='usinagem' ? 'Usinagem' : 'Injeção';
+  const itens = DEFEITOS[area].map(d =>
+    `<div class="plano-defeito-item" onclick="selecionarDefeitoLista('${nomeArea} — ${d.desc}')">${d.desc}</div>`
+  ).join('');
+  document.getElementById('plano-alert-step-desc').innerHTML = `
+    <div class="plano-alert-icon">📝</div>
+    <h3>Defeitos — ${nomeArea}</h3>
+    <div class="plano-defeito-lista">
+      ${itens}
+      <div class="plano-defeito-item outro" onclick="abrirOutroDefeito('${nomeArea}')">✎ Outro (especificar)</div>
+    </div>
+    <button class="plano-voltar-area" onclick="renderAreaSelecao()">← Escolher outra área</button>`;
+}
+
+// ── "Outro" — campo de texto livre, só quando o defeito não está na lista ──
+function abrirOutroDefeito(nomeArea){
+  document.getElementById('plano-alert-step-desc').innerHTML = `
+    <div class="plano-alert-icon">📝</div>
+    <h3>Descreva o defeito encontrado</h3>
+    <div class="plano-desc-wrap">
+      <label>Descrição do defeito (${nomeArea})</label>
+      <textarea id="plano-alert-desc-input" placeholder="Ex: trinca visível na aleta lateral esquerda"></textarea>
+      <button onclick="confirmarOutroDefeito('${nomeArea}')">Confirmar e continuar</button>
+    </div>`;
   setTimeout(()=>document.getElementById('plano-alert-desc-input').focus(), 100);
 }
 
-function salvarDescricaoNok(){
+function confirmarOutroDefeito(nomeArea){
   const val = document.getElementById('plano-alert-desc-input').value.trim();
   if(!val){ alert('Descreva o defeito encontrado antes de continuar.'); return; }
+  selecionarDefeitoLista(`${nomeArea} — ${val}`);
+}
+
+function selecionarDefeitoLista(descricao){
   const passos = pcPassos();
   const step = passos[pcState.step];
-  pcState.respostas[step.campo+'_desc'] = val;
+  pcState.respostas[step.campo+'_desc'] = descricao;
   document.getElementById('plano-alert-overlay').classList.remove('open');
   pcNext();
 }
