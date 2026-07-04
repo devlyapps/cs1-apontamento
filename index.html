@@ -284,6 +284,17 @@
   .plano-btn-ok{background:linear-gradient(135deg,#25a35a,#1A7A3C);}
   .plano-btn-nok{background:linear-gradient(135deg,#d33f3f,#a82727);}
 
+  .plano-foto-lightbox{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:2200;align-items:center;justify-content:center;padding:16px;}
+  .plano-foto-lightbox.open{display:flex;}
+  .plano-foto-lightbox img{max-width:100%;max-height:92vh;object-fit:contain;border-radius:6px;}
+  .plano-foto-lightbox-close{position:absolute;top:16px;right:20px;background:rgba(255,255,255,0.15);color:#fff;border:none;width:40px;height:40px;border-radius:50%;font-size:20px;cursor:pointer;}
+
+  .confete-piece{position:fixed;top:-20px;z-index:3000;pointer-events:none;border-radius:2px;animation:confete-cair linear forwards;}
+  @keyframes confete-cair{
+    0%{transform:translateY(0) rotate(0deg);opacity:1;}
+    100%{transform:translateY(105vh) rotate(720deg);opacity:0.9;}
+  }
+
   .plano-alert-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.72);z-index:2100;align-items:center;justify-content:center;padding:20px;}
   .plano-alert-overlay.open{display:flex;}
   .plano-alert-box{background:white;border-radius:14px;max-width:440px;width:100%;padding:30px 26px;text-align:center;box-shadow:0 24px 80px rgba(0,0,0,0.4);}
@@ -676,6 +687,12 @@
       </div>
     </div>
   </div>
+</div>
+
+<!-- VISUALIZADOR DE FOTO EM TELA CHEIA -->
+<div class="plano-foto-lightbox" id="plano-foto-lightbox" onclick="fecharFotoAmpliada()">
+  <button class="plano-foto-lightbox-close" onclick="fecharFotoAmpliada()">✕</button>
+  <img id="plano-foto-lightbox-img" src="" alt="Foto ampliada">
 </div>
 
 <script>
@@ -1641,6 +1658,8 @@ function mostrarResumoPeca(){
   document.getElementById('pc-btn-prev').style.display = 'none';
   document.getElementById('pc-btn-next').style.display = 'none';
   document.getElementById('pc-step-counter').textContent = '';
+
+  if(ultima) dispararConfete();
 }
 
 // ── Fechamento da embalagem ──
@@ -1790,7 +1809,10 @@ function pcRenderStep(){
     const foto = getFotoPlano(step.fotoKey);
     const html = `
       <div class="plano-id-badge">ID ${step.id}</div>
-      <div class="plano-foto-wrap"><img src="${foto}" alt="Referência do defeito — item ${step.id}"></div>
+      <div class="plano-foto-wrap" onclick="abrirFotoAmpliada('${foto}')" style="cursor:zoom-in;position:relative;">
+        <img src="${foto}" alt="Referência do defeito — item ${step.id}">
+        <div style="position:absolute;bottom:8px;right:8px;background:rgba(0,0,0,0.55);color:#fff;font-size:11px;padding:4px 10px;border-radius:999px;">🔍 Toque para ampliar</div>
+      </div>
       <div class="plano-info-grid">
         <div class="plano-info-item full"><div class="plano-info-label">Descrição</div><div class="plano-info-value">${step.label}</div></div>
         <div class="plano-info-item full"><div class="plano-info-label">Especificação</div><div class="plano-info-value">${step.especificacao}</div></div>
@@ -1871,6 +1893,35 @@ function pcSetOkNok(valor){
   }
   // Re-renderiza para refletir seleção visual
   pcRenderStep();
+}
+
+// ── Efeito de confete (comemoração ao fechar a embalagem) ──
+function dispararConfete(){
+  const cores = ['#1B3A5C','#3B7CA8','#1A7A3C','#E8A93B','#C0152A','#6fe3a0'];
+  const qtd = 70;
+  for(let i=0;i<qtd;i++){
+    const el = document.createElement('div');
+    el.className = 'confete-piece';
+    const tam = 6 + Math.random()*7;
+    el.style.left = (Math.random()*100) + 'vw';
+    el.style.width = tam + 'px';
+    el.style.height = (tam*0.4) + 'px';
+    el.style.background = cores[Math.floor(Math.random()*cores.length)];
+    el.style.animationDuration = (2.2 + Math.random()*1.6) + 's';
+    el.style.animationDelay = (Math.random()*0.4) + 's';
+    document.body.appendChild(el);
+    setTimeout(()=>el.remove(), 4500);
+  }
+}
+
+// ── Visualizador de foto em tela cheia ──
+function abrirFotoAmpliada(src){
+  document.getElementById('plano-foto-lightbox-img').src = src;
+  document.getElementById('plano-foto-lightbox').classList.add('open');
+}
+
+function fecharFotoAmpliada(){
+  document.getElementById('plano-foto-lightbox').classList.remove('open');
 }
 
 // ── Alerta bloqueante de peça reprovada (NOK) ──
