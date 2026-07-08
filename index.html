@@ -528,7 +528,8 @@
           </div>
           <div class="form-group">
             <label>Inspetor Responsável <span style="color:var(--red)">*</span></label>
-            <input type="text" id="fr-inspetor" placeholder="Nome do inspetor que realizou a inspeção" autocomplete="off" />
+            <input type="text" id="fr-inspetor" placeholder="Digite ou selecione o inspetor" autocomplete="off" list="lista-inspetores" />
+            <datalist id="lista-inspetores"></datalist>
           </div>
           <div class="form-group">
             <label>Qtd. Inspecionada</label>
@@ -587,7 +588,7 @@
         <div id="fech-resumo"></div>
         <div class="form-group">
           <label>Inspetor Responsável <span style="color:var(--red)">*</span></label>
-          <input type="text" id="fech-inspetor" placeholder="Nome do inspetor que realizou a inspeção" autocomplete="off"/>
+          <input type="text" id="fech-inspetor" placeholder="Digite ou selecione o inspetor" autocomplete="off" list="lista-inspetores"/>
         </div>
         <div class="form-group">
           <label>Nº do Cartão de Controle</label>
@@ -654,8 +655,15 @@
 
       <div class="card">
         <div class="card-title">Apontamentos deste turno</div>
+        <div class="filters" style="margin-bottom:12px;">
+          <input type="text" id="turno-filtro-pn" placeholder="Filtrar PN..." style="width:130px" oninput="renderTurnoTable()" />
+          <select id="turno-filtro-insp" onchange="renderTurnoTable()">
+            <option value="">Todos os inspetores</option>
+          </select>
+          <button class="btn btn-secondary btn-sm" onclick="limparFiltrosTurno()">Limpar</button>
+        </div>
         <div class="table-wrap"><table>
-          <thead><tr><th>PN</th><th>Cliente</th><th>Qtd. Inspecionada</th><th>NC</th><th>Defeitos</th><th>Hora</th></tr></thead>
+          <thead><tr><th>PN</th><th>Cliente</th><th>Inspetor Resp.</th><th>Qtd. Insp.</th><th>NC</th><th>Defeitos</th><th>Hora</th></tr></thead>
           <tbody id="turno-tbody"></tbody>
           <tfoot id="turno-tfoot"></tfoot>
         </table></div>
@@ -1197,6 +1205,7 @@ async function loadData(){
     }));
     state.planos = pResp.planos || [];
     buildPlanosRuntime();
+    atualizarListaInspetores();
 
     // Verifica se pelo menos usuários carregaram
     if(!uResp.users || uResp.users.length === 0){
@@ -1238,6 +1247,7 @@ window.addEventListener('load', async ()=>{
   buildDefeitosModal();
   updateDefeitoSelects();
   updateInspetorSelect();
+  atualizarListaInspetores();
   document.querySelectorAll('.obs-quick-checkbox').forEach(c=>{
     c.addEventListener('change', ()=>{
       c.closest('.obs-quick-chip').classList.toggle('checked', c.checked);
@@ -1491,43 +1501,50 @@ function doLogin(){
 }
 
 function gerarPDF(){
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
+  try{
+    if(!window.jspdf || !window.jspdf.jsPDF){
+      alert('Biblioteca de PDF ainda carregando. Aguarde alguns segundos e tente novamente.');
+      return;
+    }
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
 
-  const hoje = new Date().toLocaleDateString('pt-BR');
-  const inspetorLogado = state.currentUser?.nome || '—';
+    const hoje = new Date().toLocaleDateString('pt-BR');
+    const inspetorLogado = state.currentUser?.nome || '—';
 
-  // Filtra apontamentos de hoje deste login
-  const meus = state.apontamentos.filter(a =>
-    normalizeRE(a.re) === normalizeRE(state.currentUser.re) && a.data === hoje
-  );
+    // Filtra apontamentos de hoje deste login
+    const meus = state.apontamentos.filter(a =>
+      normalizeRE(a.re) === normalizeRE(state.currentUser.re) && a.data === hoje
+    );
 
-  // Consolida por PN + Inspetor Responsável
-  const consolidado = {};
-  meus.forEach(a => {
-    const inspResp = a.inspetor || inspetorLogado;
-    const chave = `${a.pn}_${inspResp}`;
-    if(!consolidado[chave]) consolidado[chave] = {
-      pn: a.pn, cliente: a.cliente, inspetor: inspResp, qtdTotal: 0, qtdNC: 0, defeitos: {}
-    };
-    consolidado[chave].qtdTotal += a.qtdTotal;
-    consolidado[chave].qtdNC += a.qtdNC;
-    if(a.defeitos) Object.entries(a.defeitos).forEach(([cod, info]) => {
-      const qty = (typeof info === 'object') ? (info.qty || 0) : (info || 0);
-      const d = ALL_DEFS.find(x => x.cod === cod);
-      const nome = d ? d.desc : cod;
-      if(!consolidado[chave].defeitos[nome]) consolidado[chave].defeitos[nome] = 0;
-      consolidado[chave].defeitos[nome] += qty;
+    // Consolida por PN + Inspetor Responsável
+    const consolidado = {};
+    meus.forEach(a => {
+      const inspResp = a.inspetor || inspetorLogado;
+      const chave = `${a.pn}_${inspResp}`;
+      if(!consolidado[chave]) consolidado[chave] = {
+        pn: a.pn, cliente: a.cliente, inspetor: inspResp, qtdTotal: 0, qtdNC: 0, defeitos: {}
+      };
+      consolidado[chave].qtdTotal += a.qtdTotal;
+      consolidado[chave].qtdNC += a.qtdNC;
+      if(a.defeitos) Object.entries(a.defeitos).forEach(([cod, info]) => {
+        const qty = (typeof info === 'object') ? (info.qty || 0) : (info || 0);
+        const d = ALL_DEFS.find(x => x.cod === cod);
+        const nome = d ? d.desc : cod;
+        if(!consolidado[chave].defeitos[nome]) consolidado[chave].defeitos[nome] = 0;
+        consolidado[chave].defeitos[nome] += qty;
+      });
     });
-  });
 
-  const rows = Object.values(consolidado);
+    const rows = Object.values(consolidado);
 
-  // ── LOGO ──
-  const logoImg = document.querySelector('.login-logo img')?.src || document.querySelector('.header-logo img')?.src;
-  if(logoImg) {
-    doc.addImage(logoImg, 'PNG', 14, 10, 22, 18);
-  }
+    // ── LOGO ──
+    try{
+      const logoImg = document.querySelector('.login-logo img')?.src || document.querySelector('.header-logo img')?.src;
+      if(logoImg && logoImg.startsWith('data:')) {
+        doc.addImage(logoImg, 'PNG', 14, 10, 22, 18);
+      }
+    }catch(e){ console.warn('Logo não carregada no PDF:', e); }
 
   // ── CABEÇALHO ──
   doc.setFont('helvetica','bold');
@@ -1648,8 +1665,12 @@ function gerarPDF(){
   doc.text('Martinrea Honsel Brasil — CS1 Apontamento de Inspeção', 14, 290);
   doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, 140, 290);
 
-  const nomeArquivo = `Boletim_QSS_${hoje.replace(/\//g,'-')}_${inspetor.replace(/\s+/g,'_')}_${state.currentUser?.turno||'T'}.pdf`;
+  const nomeArquivo = `Boletim_QSS_${hoje.replace(/\//g,'-')}_${inspetorLogado.replace(/\s+/g,'_')}_${state.currentUser?.turno||'T'}.pdf`;
   doc.save(nomeArquivo);
+  }catch(e){
+    console.error('Erro ao gerar PDF:', e);
+    alert('Erro ao gerar o PDF: ' + e.message);
+  }
 }
 
 function doLogout(){
@@ -2748,19 +2769,29 @@ function renderTurnoTable(){
   const tbody=document.getElementById('turno-tbody');
   const tfoot=document.getElementById('turno-tfoot');
   const hoje=new Date().toLocaleDateString('pt-BR');
-  const meus=state.apontamentos.filter(a=>normalizeRE(a.re)===normalizeRE(state.currentUser.re)&&a.data===hoje);
+
+  let meus=state.apontamentos.filter(a=>normalizeRE(a.re)===normalizeRE(state.currentUser.re)&&a.data===hoje);
+
+  // Aplicar filtros
+  const filtroPn = document.getElementById('turno-filtro-pn')?.value?.toLowerCase()||'';
+  const filtroInsp = document.getElementById('turno-filtro-insp')?.value||'';
+  if(filtroPn) meus=meus.filter(a=>a.pn.toLowerCase().includes(filtroPn));
+  if(filtroInsp) meus=meus.filter(a=>(a.inspetor||'')=== filtroInsp);
 
   if(!meus.length){
-    tbody.innerHTML='<tr><td colspan="6"><div class="empty"><div class="empty-icon">📋</div><p>Nenhum apontamento hoje ainda.</p></div></td></tr>';
+    tbody.innerHTML='<tr><td colspan="7"><div class="empty"><div class="empty-icon">📋</div><p>Nenhum apontamento encontrado.</p></div></td></tr>';
     tfoot.innerHTML='';
     return;
   }
 
   tbody.innerHTML=[...meus].reverse().map(a=>`
     <tr>
-      <td><strong>${a.pn}</strong></td><td>${a.cliente}</td><td>${a.qtdTotal}</td>
+      <td><strong>${a.pn}</strong></td>
+      <td>${a.cliente}</td>
+      <td style="font-size:12px">${a.inspetor||'—'}</td>
+      <td>${a.qtdTotal}</td>
       <td>${a.qtdNC>0?`<span class="badge badge-red">${a.qtdNC}</span>`:`<span class="badge badge-green">0</span>`}</td>
-      <td style="max-width:200px;font-size:12px">${renderDefTags(a.defeitos)}</td>
+      <td style="max-width:180px;font-size:12px">${renderDefTags(a.defeitos)}</td>
       <td>${a.hora}</td>
     </tr>`).join('');
 
@@ -2768,11 +2799,38 @@ function renderTurnoTable(){
   const totalNC=meus.reduce((s,a)=>s+a.qtdNC,0);
   tfoot.innerHTML=`
     <tr style="font-weight:700;background:var(--gray-100);border-top:2px solid var(--gray-300)">
-      <td colspan="2" style="text-align:right;padding:10px 12px">Total do dia:</td>
+      <td colspan="3" style="text-align:right;padding:10px 12px">Total filtrado:</td>
       <td style="padding:10px 12px">${totalInsp}</td>
       <td style="padding:10px 12px"><span class="badge badge-red">${totalNC}</span></td>
       <td colspan="2"></td>
     </tr>`;
+}
+
+function limparFiltrosTurno(){
+  const pn=document.getElementById('turno-filtro-pn');
+  const insp=document.getElementById('turno-filtro-insp');
+  if(pn) pn.value='';
+  if(insp) insp.value='';
+  renderTurnoTable();
+}
+
+function atualizarListaInspetores(){
+  const inspetores = state.users
+    .filter(u=>u.perfil==='inspetor')
+    .map(u=>u.nome);
+
+  // Atualiza datalist nos campos de formulário
+  const datalist=document.getElementById('lista-inspetores');
+  if(datalist){
+    datalist.innerHTML=inspetores.map(n=>`<option value="${n}">`).join('');
+  }
+
+  // Atualiza select de filtro na tabela do turno
+  const sel=document.getElementById('turno-filtro-insp');
+  if(sel){
+    sel.innerHTML='<option value="">Todos os inspetores</option>'+
+      inspetores.map(n=>`<option value="${n}">${n}</option>`).join('');
+  }
 }
 
 function renderDefTags(defeitos){
