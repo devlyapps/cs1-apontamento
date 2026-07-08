@@ -2015,42 +2015,46 @@ function abrirFechamentoRapido(){
 }
 
 async function finalizarApontamentoRapido(){
-  const cartao=document.getElementById('fr-cartao').value.trim();
-  if(!cartao){alert('Informe o Cartão de Controle antes de finalizar.');return;}
+  const btnFinalizar = document.querySelector('#card-fechamento-rapido .btn-success');
+  if(btnFinalizar) btnFinalizar.disabled=true;
 
-  const pn=document.getElementById('fr-pn').value.trim();
-  const cliente=document.getElementById('fr-cliente').value;
-  const inspetorResp=document.getElementById('fr-inspetor').value.trim();
-  const qtdTotal=parseInt(document.getElementById('fr-qtd-total').value)||0;
-  const qtdNC=parseInt(document.getElementById('fr-qtd-nc').value)||0;
-
-  const obsSelect=document.getElementById('fr-obs-select').value;
-  const obsTexto=document.getElementById('fr-obs').value.trim();
-  const obsPartes=[]; if(obsSelect) obsPartes.push(obsSelect); if(obsTexto) obsPartes.push(obsTexto);
-  const obsFinal=obsPartes.join(' | ');
-
-  const now=new Date();
-  const novoApontamento={
-    id:Date.now(),
-    data:now.toLocaleDateString('pt-BR'),
-    hora:now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),
-    inspetor:inspetorResp || state.currentUser.nome,
-    inspetorMaster:state.currentUser.nome,
-    re:state.currentUser.re, turno:state.currentUser.turno,
-    pn, cliente, cartao,
-    qtdEmbalagem:qtdTotal, qtdTotal, qtdNC,
-    defeitos:{...frDefSelecionados},
-    pecas:[],
-    obs:obsFinal
-  };
-
-  const btn=event?.target; if(btn) btn.disabled=true;
   try{
+    const cartao=document.getElementById('fr-cartao').value.trim();
+    if(!cartao){alert('Informe o Cartão de Controle antes de finalizar.');if(btnFinalizar)btnFinalizar.disabled=false;return;}
+
+    const pn=document.getElementById('fr-pn').value.trim();
+    const cliente=document.getElementById('fr-cliente').value;
+    const inspetorResp=document.getElementById('fr-inspetor').value.trim();
+    const qtdTotal=parseInt(document.getElementById('fr-qtd-total').value)||0;
+    const qtdNC=parseInt(document.getElementById('fr-qtd-nc').value)||0;
+
+    const obsSelect=document.getElementById('fr-obs-select').value;
+    const obsTexto=document.getElementById('fr-obs').value.trim();
+    const obsPartes=[]; if(obsSelect) obsPartes.push(obsSelect); if(obsTexto) obsPartes.push(obsTexto);
+    const obsFinal=obsPartes.join(' | ');
+
+    const now=new Date();
+    const novoApontamento={
+      id:Date.now(),
+      data:now.toLocaleDateString('pt-BR'),
+      hora:now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),
+      inspetor:inspetorResp || state.currentUser.nome,
+      inspetorMaster:state.currentUser.nome,
+      re:state.currentUser.re, turno:state.currentUser.turno,
+      pn, cliente, cartao,
+      qtdEmbalagem:qtdTotal, qtdTotal, qtdNC,
+      defeitos:{...frDefSelecionados},
+      pecas:[],
+      obs:obsFinal
+    };
+
     await apiPost('addApontamento', novoApontamento);
     state.apontamentos.push(novoApontamento);
     document.getElementById('card-fechamento-rapido').style.display='none';
     document.getElementById('card-iniciar-inspecao').style.display='';
     limparFormRapido();
+    frDefSelecionados={};
+    renderFrDefTags();
     renderTurnoTable(); renderTurnoKPIs(); showSaved();
     const al=document.createElement('div');
     al.className='alert alert-success';
@@ -2059,8 +2063,10 @@ async function finalizarApontamentoRapido(){
     document.body.appendChild(al);
     setTimeout(()=>al.remove(),3000);
   }catch(e){
-    alert('Erro ao registrar. Verifique sua conexão.');
-    if(btn) btn.disabled=false;
+    console.error('Erro ao finalizar apontamento:', e);
+    alert('Erro ao registrar. Verifique sua conexão e tente novamente.');
+  }finally{
+    if(btnFinalizar) btnFinalizar.disabled=false;
   }
 }
 
