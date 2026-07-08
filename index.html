@@ -152,7 +152,19 @@
   .badge-ok{background:#1A7A3C;color:white;padding:2px 10px;border-radius:10px;font-weight:700;font-size:11px;}
   .badge-nok{background:#C0152A;color:white;padding:2px 10px;border-radius:10px;font-weight:700;font-size:11px;}
 
-  /* ACCORDION PEÇAS COM LAUDOS POR CARACTERÍSTICA */
+  /* ACCORDION DOIS NÍVEIS */
+  .rastreio-lista{display:flex;flex-direction:column;gap:6px;}
+  .rastreio-item{display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:8px;cursor:pointer;transition:all 0.15s;border:1.5px solid transparent;}
+  .rastreio-item.ok{background:#E6F4EC;border-color:#1A7A3C;}
+  .rastreio-item.nok{background:#FFF0F0;border-color:#C0152A;}
+  .rastreio-item:hover{filter:brightness(0.96);}
+  .rastreio-num{font-size:12px;font-weight:800;color:var(--gray-500);min-width:56px;}
+  .rastreio-valor{flex:1;font-size:14px;font-weight:700;}
+  .rastreio-item.ok .rastreio-valor{color:#1A7A3C;}
+  .rastreio-item.nok .rastreio-valor{color:#C0152A;}
+  .rastreio-hint{font-size:11px;color:var(--gray-500);font-style:italic;}
+  .rastreio-detalhe{display:none;padding:8px 14px 12px 14px;border-top:1px dashed var(--gray-200);}
+  .rastreio-detalhe.aberto{display:block;}
   .peca-accordion{border-radius:8px;overflow:hidden;margin-bottom:10px;border:1.5px solid var(--gray-200);}
   .peca-accordion-ok{border-color:#1A7A3C;}
   .peca-accordion-nok{border-color:#C0152A;}
@@ -484,7 +496,84 @@
           <div class="card-title" id="hub-cliente-titulo">Cliente selecionado</div>
           <button class="btn btn-secondary btn-sm" onclick="voltarHub()">← Trocar cliente</button>
         </div>
-        <button type="button" class="btn btn-plano" style="font-size:19px;padding:26px 10px;" onclick="iniciarInspecaoFluxo()">▶ INICIAR INSPEÇÃO</button>
+        <div style="display:flex;flex-direction:column;gap:12px;margin-top:8px;">
+          <button type="button" class="btn btn-plano" style="font-size:17px;padding:24px 10px;" onclick="iniciarInspecaoFluxo()">
+            📋 Registro de Inspeção 100%
+            <span style="display:block;font-size:11px;font-weight:400;opacity:0.8;margin-top:4px;">Laudo peça a peça · item por item</span>
+          </button>
+          <button type="button" class="btn btn-plano" style="font-size:17px;padding:24px 10px;background:linear-gradient(135deg,#1A7A3C,#145e2f);" onclick="abrirFormRapido()">
+            ⚡ Registrar Apontamento
+            <span style="display:block;font-size:11px;font-weight:400;opacity:0.8;margin-top:4px;">Registro rápido por lote</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- FORMULÁRIO RÁPIDO -->
+      <div class="card" id="card-form-rapido" style="display:none">
+        <div class="card-title-row">
+          <div class="card-title" id="form-rapido-titulo">Registrar Apontamento</div>
+          <button class="btn btn-secondary btn-sm" onclick="fecharFormRapido()">← Voltar</button>
+        </div>
+        <div id="form-rapido-success" class="alert alert-success" style="display:none">✔ Apontamento registrado!</div>
+        <div class="form-col">
+          <div class="form-group">
+            <label>Nº da Peça (PN)</label>
+            <input type="text" id="fr-pn" placeholder="Ex: 2711" maxlength="4" inputmode="numeric" oninput="onFrPnInput(this)" />
+            <div id="fr-pn-sugestoes" class="pn-sugestoes" style="display:none"></div>
+            <div id="fr-cliente-msg" style="font-size:11px;color:var(--red);margin-top:4px;display:none">PN não pertence a este cliente.</div>
+          </div>
+          <div class="form-group">
+            <label>Cliente</label>
+            <input type="text" id="fr-cliente" readonly />
+          </div>
+          <div class="form-group">
+            <label>Qtd. Inspecionada</label>
+            <input type="number" id="fr-qtd-total" placeholder="0" min="1" inputmode="numeric" />
+          </div>
+          <div class="form-group">
+            <label>Qtd. Não Conforme</label>
+            <input type="number" id="fr-qtd-nc" placeholder="0" min="0" inputmode="numeric" oninput="onFrQtdNcInput(this)" />
+          </div>
+          <div class="form-group" id="fr-defeitos-group" style="display:none">
+            <label>Defeitos Encontrados <span style="color:var(--red)">*</span></label>
+            <div class="defeito-trigger" id="fr-defeito-trigger" onclick="openDefeitosModalFr()">
+              <span class="defeito-trigger-text" id="fr-defeito-trigger-text">Clique para selecionar os defeitos...</span>
+              <span class="defeito-trigger-arrow">▼</span>
+            </div>
+            <div class="defeitos-tags" id="fr-defeitos-tags"></div>
+          </div>
+          <div class="form-group">
+            <label>Observações</label>
+            <select id="fr-obs-select">
+              <option value="">Selecione uma opção...</option>
+              <option value="Peça separada para análise dos inspetores">Peça separada para análise dos inspetores</option>
+              <option value="Segregado todo o lote">Segregado todo o lote</option>
+              <option value="Liderança informada">Liderança informada</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <textarea id="fr-obs" placeholder="Outras observações (opcional)" style="min-height:60px;"></textarea>
+          </div>
+        </div>
+        <button class="btn btn-success" style="width:100%;padding:14px;font-size:16px;" onclick="abrirFechamentoRapido()">Revisar e Finalizar →</button>
+      </div>
+
+      <!-- FECHAMENTO DO APONTAMENTO RÁPIDO -->
+      <div class="card" id="card-fechamento-rapido" style="display:none">
+        <div class="card-title" id="fr-fechamento-titulo">Fechamento da Embalagem</div>
+        <div class="kpi-grid" style="margin-bottom:16px;">
+          <div class="kpi green"><div class="kpi-label">Peças OK</div><div class="kpi-value" id="fr-fech-ok">0</div></div>
+          <div class="kpi red"><div class="kpi-label">Peças NOK</div><div class="kpi-value" id="fr-fech-nok">0</div></div>
+          <div class="kpi"><div class="kpi-label">Total Inspecionado</div><div class="kpi-value" id="fr-fech-total">0</div></div>
+        </div>
+        <div class="form-group">
+          <label>Cartão de Controle <span style="color:var(--red)">*</span></label>
+          <input type="text" id="fr-cartao" placeholder="Ex: 1234-A" />
+        </div>
+        <div style="display:flex;gap:10px;margin-top:8px;">
+          <button class="btn btn-success" style="flex:1;padding:16px;font-size:15px;" onclick="finalizarApontamentoRapido()">✔ Finalizar e Registrar</button>
+          <button class="btn btn-secondary" style="padding:16px 20px;" onclick="fecharFechamentoRapido()">Cancelar</button>
+        </div>
       </div>
 
       <!-- FECHAMENTO DA EMBALAGEM (após inspecionar todas as peças) -->
@@ -717,6 +806,20 @@
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('modal-del')">Cancelar</button>
       <button class="btn btn-primary" style="width:auto;padding:10px 24px" onclick="confirmarDelete()">Remover</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL DEFEITOS — FORMULÁRIO RÁPIDO -->
+<div class="modal-overlay" id="modal-defeitos-fr">
+  <div class="modal">
+    <h2>Selecionar Defeitos</h2>
+    <p class="modal-sub">Marque os defeitos encontrados no lote.</p>
+    <div id="modal-defeitos-fr-body"></div>
+    <div id="modal-defeitos-fr-error" class="alert alert-error" style="display:none;margin-bottom:8px;"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="limparDefeitosFr()">Limpar</button>
+      <button class="btn btn-primary" style="width:auto;padding:10px 24px" onclick="confirmarDefeitosFr()">Confirmar</button>
     </div>
   </div>
 </div>
@@ -1618,8 +1721,284 @@ function voltarHub(){
   document.getElementById('card-iniciar-inspecao').style.display='none';
   document.getElementById('form-apontamento').style.display='none';
   document.getElementById('card-fechar-embalagem').style.display='none';
+  document.getElementById('card-form-rapido').style.display='none';
+  document.getElementById('card-fechamento-rapido').style.display='none';
   inspecao = { pn:'', cliente:'', qtd:0, pecaAtual:0, pecas:[] };
 }
+
+// ══ FORMULÁRIO RÁPIDO ══
+let frDefSelecionados = {};
+
+function abrirFormRapido(){
+  document.getElementById('card-iniciar-inspecao').style.display='none';
+  document.getElementById('card-form-rapido').style.display='';
+  document.getElementById('form-rapido-titulo').textContent=`Registrar Apontamento — ${clienteSelecionado}`;
+  limparFormRapido();
+  // Monta modal de defeitos do FR
+  buildDefeitosFrModal();
+  setTimeout(()=>document.getElementById('fr-pn').focus(), 100);
+}
+
+function fecharFormRapido(){
+  document.getElementById('card-form-rapido').style.display='none';
+  document.getElementById('card-iniciar-inspecao').style.display='';
+  limparFormRapido();
+}
+
+function fecharFechamentoRapido(){
+  document.getElementById('card-fechamento-rapido').style.display='none';
+  document.getElementById('card-form-rapido').style.display='';
+}
+
+function limparFormRapido(){
+  ['fr-pn','fr-qtd-total','fr-qtd-nc','fr-obs'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.value='';
+  });
+  document.getElementById('fr-cliente').value='';
+  document.getElementById('fr-obs-select').value='';
+  document.getElementById('fr-defeitos-group').style.display='none';
+  document.getElementById('fr-cliente-msg').style.display='none';
+  const sug=document.getElementById('fr-pn-sugestoes'); if(sug) sug.style.display='none';
+  frDefSelecionados={};
+  renderFrDefTags();
+}
+
+function onFrPnInput(input){
+  input.value=input.value.replace(/\D/g,'').slice(0,4);
+  const pn=input.value;
+  const clienteField=document.getElementById('fr-cliente');
+  const msg=document.getElementById('fr-cliente-msg');
+  const sug=document.getElementById('fr-pn-sugestoes');
+
+  msg.style.display='none';
+  sug.style.display='none';
+
+  if(pn.length===4){
+    const clienteDoPN=PN_CLIENTE[pn]||'';
+    if(clienteSelecionado && clienteDoPN!==clienteSelecionado){
+      clienteField.value='';
+      msg.style.display='';
+    } else {
+      clienteField.value=clienteDoPN||clienteSelecionado;
+      msg.style.display='none';
+    }
+  } else if(pn.length>=2 && clienteSelecionado){
+    const sugestoes=Object.entries(PN_CLIENTE)
+      .filter(([p,c])=>c===clienteSelecionado&&p.startsWith(pn))
+      .map(([p])=>p).slice(0,6);
+    if(sugestoes.length){
+      sug.innerHTML=sugestoes.map(p=>`<div class="pn-sugestao-item" onclick="frSelecionarPN('${p}')">${p}</div>`).join('');
+      sug.style.display='';
+    }
+    clienteField.value='';
+  } else {
+    clienteField.value='';
+  }
+}
+
+function frSelecionarPN(pn){
+  document.getElementById('fr-pn').value=pn;
+  document.getElementById('fr-cliente').value=PN_CLIENTE[pn]||clienteSelecionado;
+  document.getElementById('fr-pn-sugestoes').style.display='none';
+  document.getElementById('fr-cliente-msg').style.display='none';
+  setTimeout(()=>document.getElementById('fr-qtd-total').focus(),100);
+}
+
+function onFrQtdNcInput(input){
+  const val=parseInt(input.value)||0;
+  const grupo=document.getElementById('fr-defeitos-group');
+  if(val>0){
+    grupo.style.display='';
+  } else {
+    grupo.style.display='none';
+    frDefSelecionados={};
+    renderFrDefTags();
+  }
+}
+
+function buildDefeitosFrModal(){
+  const body=document.getElementById('modal-defeitos-fr-body');
+  const buildSec=(titulo,lista)=>{
+    const items=lista.map(d=>`
+      <div class="def-item" id="fr-defitem-${d.cod}">
+        <label class="def-item-check">
+          <input type="checkbox" id="fr-chk-${d.cod}" value="${d.cod}" onchange="toggleFrDef('${d.cod}')" />
+          <span class="def-item-desc">${d.desc}</span>
+        </label>
+        <div class="def-item-qty" id="fr-qty-wrap-${d.cod}" style="display:none">
+          <label>Qtd. peças:</label>
+          <input type="number" id="fr-qty-${d.cod}" min="1" value="1" oninput="updateFrQty('${d.cod}')" />
+        </div>
+      </div>`).join('');
+    return `<div class="def-section"><div class="def-section-header"><span class="def-section-title">${titulo}</span></div><div class="def-section-body open">${items}</div></div>`;
+  };
+  body.innerHTML=buildSec('🔧 Usinagem',DEFEITOS.usinagem)+buildSec('🏭 Fundição/Injeção',DEFEITOS.fundicao);
+}
+
+function toggleFrDef(cod){
+  const chk=document.getElementById(`fr-chk-${cod}`);
+  const wrap=document.getElementById(`fr-qty-wrap-${cod}`);
+  const item=document.getElementById(`fr-defitem-${cod}`);
+  if(chk.checked){
+    frDefSelecionados[cod]={qty:1,rastreio:''};
+    wrap.style.display='';
+    item.classList.add('selected');
+  } else {
+    delete frDefSelecionados[cod];
+    wrap.style.display='none';
+    item.classList.remove('selected');
+  }
+}
+
+function updateFrQty(cod){
+  const qty=parseInt(document.getElementById(`fr-qty-${cod}`).value)||1;
+  if(frDefSelecionados[cod]) frDefSelecionados[cod].qty=qty;
+}
+
+function openDefeitosModalFr(){
+  // Sincroniza checkboxes com estado atual
+  ALL_DEFS.forEach(d=>{
+    const chk=document.getElementById(`fr-chk-${d.cod}`);
+    const wrap=document.getElementById(`fr-qty-wrap-${d.cod}`);
+    const item=document.getElementById(`fr-defitem-${d.cod}`);
+    const qty=document.getElementById(`fr-qty-${d.cod}`);
+    if(!chk) return;
+    if(frDefSelecionados[d.cod]){
+      chk.checked=true; wrap.style.display=''; item.classList.add('selected');
+      qty.value=frDefSelecionados[d.cod].qty;
+    } else {
+      chk.checked=false; wrap.style.display='none'; item.classList.remove('selected');
+    }
+  });
+  document.getElementById('modal-defeitos-fr-error').style.display='none';
+  document.getElementById('modal-defeitos-fr').classList.add('open');
+}
+
+function limparDefeitosFr(){
+  frDefSelecionados={};
+  ALL_DEFS.forEach(d=>{
+    const chk=document.getElementById(`fr-chk-${d.cod}`); if(chk) chk.checked=false;
+    const wrap=document.getElementById(`fr-qty-wrap-${d.cod}`); if(wrap) wrap.style.display='none';
+    const item=document.getElementById(`fr-defitem-${d.cod}`); if(item) item.classList.remove('selected');
+    const qty=document.getElementById(`fr-qty-${d.cod}`); if(qty) qty.value=1;
+  });
+  renderFrDefTags();
+}
+
+function confirmarDefeitosFr(){
+  // Coleta qtds
+  ALL_DEFS.forEach(d=>{
+    if(frDefSelecionados[d.cod]){
+      const qty=parseInt(document.getElementById(`fr-qty-${d.cod}`).value)||1;
+      frDefSelecionados[d.cod].qty=qty;
+    }
+  });
+  const qtdNC=parseInt(document.getElementById('fr-qtd-nc').value)||0;
+  const soma=Object.values(frDefSelecionados).reduce((s,v)=>s+v.qty,0);
+  if(Object.keys(frDefSelecionados).length>0 && qtdNC>0 && soma!==qtdNC){
+    const err=document.getElementById('modal-defeitos-fr-error');
+    err.textContent=`A soma das quantidades por defeito (${soma} pç) não corresponde à Qtd. NC (${qtdNC} pç).`;
+    err.style.display='';
+    return;
+  }
+  document.getElementById('modal-defeitos-fr').classList.remove('open');
+  renderFrDefTags();
+}
+
+function renderFrDefTags(){
+  const trigger=document.getElementById('fr-defeito-trigger');
+  const triggerText=document.getElementById('fr-defeito-trigger-text');
+  const tags=document.getElementById('fr-defeitos-tags');
+  const keys=Object.keys(frDefSelecionados);
+  if(!keys.length){
+    triggerText.textContent='Clique para selecionar os defeitos...';
+    trigger.classList.remove('has-items');
+    tags.innerHTML='';
+    return;
+  }
+  triggerText.textContent=`${keys.length} defeito(s) selecionado(s)`;
+  trigger.classList.add('has-items');
+  tags.innerHTML=keys.map(cod=>{
+    const d=ALL_DEFS.find(x=>x.cod===cod);
+    const qty=frDefSelecionados[cod].qty;
+    return `<span class="defeito-tag">${d?d.desc:cod}${qty>0?` (${qty})`:''}</span>`;
+  }).join('');
+}
+
+function abrirFechamentoRapido(){
+  const pn=document.getElementById('fr-pn').value.trim();
+  const cliente=document.getElementById('fr-cliente').value;
+  const qtdTotal=parseInt(document.getElementById('fr-qtd-total').value)||0;
+  const qtdNC=parseInt(document.getElementById('fr-qtd-nc').value)||0;
+
+  if(pn.length!==4){alert('Informe um PN válido com 4 dígitos.');return;}
+  if(!cliente){alert('PN não pertence a este cliente ou não cadastrado.');return;}
+  if(qtdTotal<1){alert('Informe a Qtd. Inspecionada.');return;}
+  if(qtdNC>0 && Object.keys(frDefSelecionados).length===0){
+    alert('Há peças não conformes, mas nenhum defeito foi selecionado.\n\nSelecione pelo menos um defeito antes de continuar.');
+    return;
+  }
+  if(qtdNC>qtdTotal){alert('Qtd. Não Conforme não pode ser maior que Qtd. Inspecionada.');return;}
+
+  const qtdOk=qtdTotal-qtdNC;
+  document.getElementById('fr-fech-ok').textContent=qtdOk;
+  document.getElementById('fr-fech-nok').textContent=qtdNC;
+  document.getElementById('fr-fech-total').textContent=qtdTotal;
+  document.getElementById('fr-fechamento-titulo').textContent=`Fechamento da Embalagem — PN ${pn} (${cliente})`;
+  document.getElementById('fr-cartao').value='';
+
+  document.getElementById('card-form-rapido').style.display='none';
+  document.getElementById('card-fechamento-rapido').style.display='';
+  setTimeout(()=>document.getElementById('fr-cartao').focus(),100);
+}
+
+async function finalizarApontamentoRapido(){
+  const cartao=document.getElementById('fr-cartao').value.trim();
+  if(!cartao){alert('Informe o Cartão de Controle antes de finalizar.');return;}
+
+  const pn=document.getElementById('fr-pn').value.trim();
+  const cliente=document.getElementById('fr-cliente').value;
+  const qtdTotal=parseInt(document.getElementById('fr-qtd-total').value)||0;
+  const qtdNC=parseInt(document.getElementById('fr-qtd-nc').value)||0;
+
+  const obsSelect=document.getElementById('fr-obs-select').value;
+  const obsTexto=document.getElementById('fr-obs').value.trim();
+  const obsPartes=[]; if(obsSelect) obsPartes.push(obsSelect); if(obsTexto) obsPartes.push(obsTexto);
+  const obsFinal=obsPartes.join(' | ');
+
+  const now=new Date();
+  const novoApontamento={
+    id:Date.now(),
+    data:now.toLocaleDateString('pt-BR'),
+    hora:now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),
+    inspetor:state.currentUser.nome, re:state.currentUser.re, turno:state.currentUser.turno,
+    pn, cliente, cartao,
+    qtdEmbalagem:qtdTotal, qtdTotal, qtdNC,
+    defeitos:{...frDefSelecionados},
+    pecas:[],
+    obs:obsFinal
+  };
+
+  const btn=event?.target; if(btn) btn.disabled=true;
+  try{
+    await apiPost('addApontamento', novoApontamento);
+    state.apontamentos.push(novoApontamento);
+    document.getElementById('card-fechamento-rapido').style.display='none';
+    document.getElementById('card-iniciar-inspecao').style.display='';
+    limparFormRapido();
+    renderTurnoTable(); renderTurnoKPIs(); showSaved();
+    const al=document.createElement('div');
+    al.className='alert alert-success';
+    al.style.cssText='position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:900;min-width:300px;text-align:center;box-shadow:0 4px 16px rgba(0,0,0,0.2)';
+    al.textContent=`✔ Apontamento registrado! ${qtdTotal} peças — ${qtdNC} NOK`;
+    document.body.appendChild(al);
+    setTimeout(()=>al.remove(),3000);
+  }catch(e){
+    alert('Erro ao registrar. Verifique sua conexão.');
+    if(btn) btn.disabled=false;
+  }
+}
+
 
 // ══ ACCORDION DO HISTÓRICO ══
 function toggleHistExpand(id){
@@ -1648,58 +2027,65 @@ function buildAccordionContent(a){
       <div style="margin-top:10px;font-size:12px;color:var(--gray-500);">⚠ Registro sem detalhe peça a peça.</div>`;
   }
 
+  const idAp = a.id;
   const pecasHtml = pecas.map((p, idx)=>{
     const rastreio = p.rastreio || '—';
     const veredito = p.veredito || '—';
-    const itens = p.itens || []; // [{id, label, laudo, motivo}]
-    const detalhesNok = p.detalhes || []; // compatibilidade com registros antigos
+    const isNok = veredito === 'NOK';
+    const itens = p.itens || [];
+    const detalhesNok = p.detalhes || [];
 
-    let caracteristicasHtml = '';
-
+    // Monta detalhe dos IDs (nível 2)
+    let idsHtml = '';
     if(itens.length > 0){
-      // Novo formato: laudo completo por item
-      caracteristicasHtml = itens.map(it=>{
-        const isNok = it.laudo === 'NOK';
-        return `<div class="laudo-item ${isNok?'laudo-nok':'laudo-ok'}">
+      idsHtml = itens.map(it=>{
+        const itemNok = it.laudo === 'NOK';
+        return `<div class="laudo-item ${itemNok?'laudo-nok':'laudo-ok'}">
           <span class="laudo-id">ID ${String(it.id).padStart(2,'0')}</span>
           <span class="laudo-desc">${it.label}</span>
-          <span class="laudo-badge">${isNok
-            ? `<span class="badge-nok">NOK${it.motivo?` — ${it.motivo}`:''}</span>`
-            : '<span class="badge-ok">OK</span>'
+          <span class="laudo-badge">${itemNok
+            ?`<span class="badge-nok">NOK${it.motivo?` — ${it.motivo}`:''}</span>`
+            :'<span class="badge-ok">OK</span>'
           }</span>
         </div>`;
       }).join('');
     } else if(detalhesNok.length > 0){
-      // Formato antigo: só os reprovados
-      caracteristicasHtml = detalhesNok.map(d=>`
+      idsHtml = detalhesNok.map(d=>`
         <div class="laudo-item laudo-nok">
           <span class="laudo-id">ID ${String(d.id).padStart(2,'0')}</span>
           <span class="laudo-desc">${d.label||'—'}</span>
           <span class="laudo-badge"><span class="badge-nok">NOK${d.desc?` — ${d.desc}`:''}</span></span>
         </div>`).join('');
     } else {
-      caracteristicasHtml = `<div class="laudo-item ${veredito==='OK'?'laudo-ok':'laudo-nok'}">
-        <span class="laudo-id">—</span>
-        <span class="laudo-desc">Laudo geral</span>
-        <span class="laudo-badge">${veredito==='OK'?'<span class="badge-ok">OK</span>':'<span class="badge-nok">NOK</span>'}</span>
-      </div>`;
+      idsHtml = `<div style="font-size:12px;color:var(--gray-500);padding:8px 0;">Sem detalhe por característica disponível.</div>`;
     }
 
-    return `<div class="peca-accordion ${veredito==='OK'?'peca-accordion-ok':'peca-accordion-nok'}">
-      <div class="peca-accordion-header">
-        <span class="peca-accordion-num">Peça ${String(idx+1).padStart(2,'0')}</span>
-        <span class="peca-accordion-rastreio">🔖 Rastreabilidade: <strong>${rastreio}</strong></span>
-        <span class="peca-accordion-veredito">${veredito==='OK'
-          ?'<span class="badge-ok">✔ OK</span>'
-          :'<span class="badge-nok">✕ NOK</span>'
-        }</span>
-      </div>
-      <div class="peca-accordion-body">${caracteristicasHtml}</div>
+    return `<div class="rastreio-item ${isNok?'nok':'ok'}" onclick="toggleRastreioDetalhe('${idAp}-${idx}', event)">
+      <span class="rastreio-num">Peça ${String(idx+1).padStart(2,'0')}</span>
+      <span class="rastreio-valor">🔖 ${rastreio}</span>
+      ${isNok
+        ?`<span style="font-size:11px;font-weight:700;color:#C0152A;">⚠ NOK — clique para ver detalhes</span>`
+        :`<span class="rastreio-hint">✔ Aprovada — clique para ver</span>`
+      }
+      <span class="peca-accordion-veredito">${isNok
+        ?'<span class="badge-nok">✕ NOK</span>'
+        :'<span class="badge-ok">✔ OK</span>'
+      }</span>
+    </div>
+    <div class="rastreio-detalhe" id="det-${idAp}-${idx}">
+      ${idsHtml}
     </div>`;
   }).join('');
 
   return `<div class="hist-expand-title">📋 Detalhe das Peças — ${pecas.length} de ${a.qtdEmbalagem||pecas.length} · Cartão: ${a.cartao||'—'}</div>
-    ${pecasHtml}`;
+    <div class="rastreio-lista">${pecasHtml}</div>`;
+}
+
+function toggleRastreioDetalhe(key, event){
+  event.stopPropagation();
+  const el = document.getElementById(`det-${key}`);
+  if(!el) return;
+  el.classList.toggle('aberto');
 }
 
 let inspStep = 0; // 0 = PN, 1 = Quantidade
