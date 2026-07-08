@@ -1174,9 +1174,22 @@ async function loadData(){
       nome:u.nome, re:String(u.re), senha:String(u.senha), turno:u.turno, perfil:u.perfil
     }));
     state.apontamentos = (aResp.apontamentos||[]).map(a=>({
-      id:a.id, data:formatDataBR(a.data), hora:formatHora(a.hora), inspetor:a.inspetor, re:String(a.re), turno:a.turno,
-      pn:String(a.pn), cliente:a.cliente, cartao:a.cartao?String(a.cartao):'', qtdTotal:Number(a.qtdTotal)||0, qtdNC:Number(a.qtdNC)||0,
-      defeitos:a.defeitos||{}, obs:a.obs||''
+      id: a.id,
+      data: formatDataBR(a.data),
+      hora: formatHora(a.hora),
+      inspetor: a.inspetor || '',
+      inspetorMaster: a.inspetorMaster || '',
+      re: String(a.re||''),
+      turno: a.turno || '',
+      pn: String(a.pn||''),
+      cliente: a.cliente || '',
+      cartao: a.cartao ? String(a.cartao) : '',
+      qtdEmbalagem: Number(a.qtdEmbalagem)||0,
+      qtdTotal: Number(a.qtdTotal)||0,
+      qtdNC: Number(a.qtdNC)||0,
+      defeitos: (()=>{ try{ return typeof a.defeitos==='string'?JSON.parse(a.defeitos):(a.defeitos||{}); }catch(e){return{};} })(),
+      pecas: (()=>{ try{ return typeof a.pecas==='string'?JSON.parse(a.pecas):(a.pecas||[]); }catch(e){return[];} })(),
+      obs: a.obs || ''
     }));
     state.planos = pResp.planos || [];
     buildPlanosRuntime();
