@@ -527,6 +527,10 @@
             <input type="text" id="fr-cliente" readonly />
           </div>
           <div class="form-group">
+            <label>Inspetor Responsável <span style="color:var(--red)">*</span></label>
+            <input type="text" id="fr-inspetor" placeholder="Nome do inspetor que realizou a inspeção" autocomplete="off" />
+          </div>
+          <div class="form-group">
             <label>Qtd. Inspecionada</label>
             <input type="number" id="fr-qtd-total" placeholder="0" min="1" inputmode="numeric" />
           </div>
@@ -581,6 +585,10 @@
         <div class="card-title">Fechar Embalagem</div>
         <p style="font-size:13px;color:var(--gray-500);margin-bottom:14px;">Todas as peças desta embalagem já foram inspecionadas. Confira o resultado e informe o cartão de controle para finalizar.</p>
         <div id="fech-resumo"></div>
+        <div class="form-group">
+          <label>Inspetor Responsável <span style="color:var(--red)">*</span></label>
+          <input type="text" id="fech-inspetor" placeholder="Nome do inspetor que realizou a inspeção" autocomplete="off"/>
+        </div>
         <div class="form-group">
           <label>Nº do Cartão de Controle</label>
           <input type="text" id="fech-cartao" placeholder="Ex: 1234-A"/>
@@ -1464,27 +1472,29 @@ function gerarPDF(){
   const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
 
   const hoje = new Date().toLocaleDateString('pt-BR');
-  const inspetor = state.currentUser?.nome || '—';
+  const inspetorLogado = state.currentUser?.nome || '—';
 
-  // Filtra apontamentos do inspetor de hoje
+  // Filtra apontamentos de hoje deste login
   const meus = state.apontamentos.filter(a =>
     normalizeRE(a.re) === normalizeRE(state.currentUser.re) && a.data === hoje
   );
 
-  // Consolida por PN
+  // Consolida por PN + Inspetor Responsável
   const consolidado = {};
   meus.forEach(a => {
-    if(!consolidado[a.pn]) consolidado[a.pn] = {
-      pn: a.pn, cliente: a.cliente, qtdTotal: 0, qtdNC: 0, defeitos: {}
+    const inspResp = a.inspetor || inspetorLogado;
+    const chave = `${a.pn}_${inspResp}`;
+    if(!consolidado[chave]) consolidado[chave] = {
+      pn: a.pn, cliente: a.cliente, inspetor: inspResp, qtdTotal: 0, qtdNC: 0, defeitos: {}
     };
-    consolidado[a.pn].qtdTotal += a.qtdTotal;
-    consolidado[a.pn].qtdNC += a.qtdNC;
+    consolidado[chave].qtdTotal += a.qtdTotal;
+    consolidado[chave].qtdNC += a.qtdNC;
     if(a.defeitos) Object.entries(a.defeitos).forEach(([cod, info]) => {
       const qty = (typeof info === 'object') ? (info.qty || 0) : (info || 0);
       const d = ALL_DEFS.find(x => x.cod === cod);
       const nome = d ? d.desc : cod;
-      if(!consolidado[a.pn].defeitos[nome]) consolidado[a.pn].defeitos[nome] = 0;
-      consolidado[a.pn].defeitos[nome] += qty;
+      if(!consolidado[chave].defeitos[nome]) consolidado[chave].defeitos[nome] = 0;
+      consolidado[chave].defeitos[nome] += qty;
     });
   });
 
@@ -1503,7 +1513,7 @@ function gerarPDF(){
 
   doc.setFont('helvetica','normal');
   doc.setFontSize(9);
-  doc.text(`Inspetor: ${inspetor}`, 40, 22);
+  doc.text(`Login: ${inspetorLogado}`, 40, 22);
   doc.text(`Data: ${hoje}`, 40, 27);
   doc.text(`Turno: ${state.currentUser?.turno || '—'}`, 100, 22);
   doc.text(`Total de registros: ${meus.length}`, 100, 27);
@@ -1515,8 +1525,8 @@ function gerarPDF(){
 
   // ── TABELA ──
   let y = 38;
-  const colWidths = [20, 35, 25, 20, 88];
-  const headers = ['PN', 'Cliente', 'Inspecionado', 'NC', 'Defeitos encontrados'];
+  const colWidths = [18, 30, 35, 18, 15, 66];
+  const headers = ['PN', 'Cliente', 'Inspetor Resp.', 'Insp.', 'NC', 'Defeitos encontrados'];
   const startX = 14;
 
   // Cabeçalho da tabela
@@ -1544,7 +1554,7 @@ function gerarPDF(){
       .map(([nome, qty]) => `${nome} (${qty} pç)`)
       .join(', ') || '—';
 
-    const defLines = doc.splitTextToSize(defText, colWidths[4] - 2);
+    const defLines = doc.splitTextToSize(defText, colWidths[5] - 2);
     const rowH = Math.max(7, defLines.length * 4.5);
 
     if(y + rowH > 275) {
@@ -1562,8 +1572,14 @@ function gerarPDF(){
     const midY = y + (rowH - 7) / 2;
     doc.text(r.pn, xPos, midY); xPos += colWidths[0];
     doc.text(r.cliente, xPos, midY); xPos += colWidths[1];
-    doc.text(String(r.qtdTotal), xPos, midY); xPos += colWidths[2];
+    const inspLines = doc.splitTextToSize(r.inspetor||'—', colWidths[2]-2);
+    doc.text(inspLines, xPos, midY); xPos += colWidths[2];
+    doc.text(String(r.qtdTotal), xPos, midY); xPos += colWidths[3];
 
+    if(r.qtdNC > 0) {
+      doc.setTextColor(162, 45, 45);
+      doc.setFont('helvetica','bold');
+    }
     if(r.qtdNC > 0) {
       doc.setTextColor(162, 45, 45);
       doc.setFont('helvetica','bold');
@@ -1571,7 +1587,7 @@ function gerarPDF(){
     doc.text(String(r.qtdNC), xPos, midY);
     doc.setTextColor(0, 0, 0);
     doc.setFont('helvetica','normal');
-    xPos += colWidths[3];
+    xPos += colWidths[4];
 
     doc.text(defLines, xPos, y);
     y += rowH + 1;
@@ -1596,9 +1612,9 @@ function gerarPDF(){
   doc.setFont('helvetica','bold');
   doc.setFontSize(9);
   doc.text('TOTAL', startX + 2, y);
-  doc.text(String(totalInsp), startX + colWidths[0] + colWidths[1] + 2, y);
+  doc.text(String(totalInsp), startX + colWidths[0] + colWidths[1] + colWidths[2] + 2, y);
   doc.setTextColor(162, 45, 45);
-  doc.text(String(totalNC), startX + colWidths[0] + colWidths[1] + colWidths[2] + 2, y);
+  doc.text(String(totalNC), startX + colWidths[0] + colWidths[1] + colWidths[2] + colWidths[3] + 2, y);
   doc.setTextColor(0, 0, 0);
 
   // Rodapé
@@ -1751,7 +1767,7 @@ function fecharFechamentoRapido(){
 }
 
 function limparFormRapido(){
-  ['fr-pn','fr-qtd-total','fr-qtd-nc','fr-obs'].forEach(id=>{
+  ['fr-pn','fr-inspetor','fr-qtd-total','fr-qtd-nc','fr-obs'].forEach(id=>{
     const el=document.getElementById(id); if(el) el.value='';
   });
   document.getElementById('fr-cliente').value='';
@@ -1928,11 +1944,13 @@ function renderFrDefTags(){
 function abrirFechamentoRapido(){
   const pn=document.getElementById('fr-pn').value.trim();
   const cliente=document.getElementById('fr-cliente').value;
+  const inspetor=document.getElementById('fr-inspetor').value.trim();
   const qtdTotal=parseInt(document.getElementById('fr-qtd-total').value)||0;
   const qtdNC=parseInt(document.getElementById('fr-qtd-nc').value)||0;
 
   if(pn.length!==4){alert('Informe um PN válido com 4 dígitos.');return;}
   if(!cliente){alert('PN não pertence a este cliente ou não cadastrado.');return;}
+  if(!inspetor){alert('Informe o nome do Inspetor Responsável pela inspeção.');return;}
   if(qtdTotal<1){alert('Informe a Qtd. Inspecionada.');return;}
   if(qtdNC>0 && Object.keys(frDefSelecionados).length===0){
     alert('Há peças não conformes, mas nenhum defeito foi selecionado.\n\nSelecione pelo menos um defeito antes de continuar.');
@@ -1944,7 +1962,7 @@ function abrirFechamentoRapido(){
   document.getElementById('fr-fech-ok').textContent=qtdOk;
   document.getElementById('fr-fech-nok').textContent=qtdNC;
   document.getElementById('fr-fech-total').textContent=qtdTotal;
-  document.getElementById('fr-fechamento-titulo').textContent=`Fechamento da Embalagem — PN ${pn} (${cliente})`;
+  document.getElementById('fr-fechamento-titulo').textContent=`Fechamento — PN ${pn} (${cliente}) · Inspetor: ${inspetor}`;
   document.getElementById('fr-cartao').value='';
 
   document.getElementById('card-form-rapido').style.display='none';
@@ -1958,6 +1976,7 @@ async function finalizarApontamentoRapido(){
 
   const pn=document.getElementById('fr-pn').value.trim();
   const cliente=document.getElementById('fr-cliente').value;
+  const inspetorResp=document.getElementById('fr-inspetor').value.trim();
   const qtdTotal=parseInt(document.getElementById('fr-qtd-total').value)||0;
   const qtdNC=parseInt(document.getElementById('fr-qtd-nc').value)||0;
 
@@ -1971,7 +1990,9 @@ async function finalizarApontamentoRapido(){
     id:Date.now(),
     data:now.toLocaleDateString('pt-BR'),
     hora:now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),
-    inspetor:state.currentUser.nome, re:state.currentUser.re, turno:state.currentUser.turno,
+    inspetor:inspetorResp || state.currentUser.nome,
+    inspetorMaster:state.currentUser.nome,
+    re:state.currentUser.re, turno:state.currentUser.turno,
     pn, cliente, cartao,
     qtdEmbalagem:qtdTotal, qtdTotal, qtdNC,
     defeitos:{...frDefSelecionados},
@@ -2298,6 +2319,8 @@ function abrirFechamentoEmbalagem(){
 
 async function finalizarEmbalagem(){
   const cartao = document.getElementById('fech-cartao').value.trim();
+  const inspetorResp = document.getElementById('fech-inspetor').value.trim();
+  if(!inspetorResp){ alert('Informe o nome do Inspetor Responsável pela inspeção.'); return; }
   if(!cartao){ alert('Informe o número do Cartão de Controle.'); return; }
 
   const totalNok = inspecao.pecas.filter(p=>p.veredito==='NOK').length;
@@ -2350,12 +2373,14 @@ async function finalizarEmbalagem(){
     id: Date.now(),
     data: now.toLocaleDateString('pt-BR'),
     hora: now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),
-    inspetor: state.currentUser.nome, re: state.currentUser.re, turno: state.currentUser.turno,
+    inspetor: inspetorResp || state.currentUser.nome,
+    inspetorMaster: state.currentUser.nome,
+    re: state.currentUser.re, turno: state.currentUser.turno,
     pn: inspecao.pn, cliente: inspecao.cliente, cartao,
     qtdEmbalagem: inspecao.qtd,
     qtdTotal: inspecao.qtd, qtdNC: totalNok,
     defeitos: {...defSelecionados},
-    pecas: pecasCompletas,  // ← salva o laudo completo por peça/característica
+    pecas: pecasCompletas,
     obs: obsFinal
   };
 
