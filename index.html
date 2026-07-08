@@ -762,9 +762,50 @@
         <p style="font-size:12px;color:var(--gray-500);margin-bottom:12px;">Cada plano é vinculado a um PN e a um cliente. O inspetor digita o PN e o app busca o plano correspondente automaticamente.</p>
         <div id="planos-admin-lista"></div>
       </div>
+
+      <!-- GERENCIAR DEFEITOS -->
+      <div class="card" style="margin-top:16px;">
+        <div class="card-title-row">
+          <div class="card-title">⚠ Gerenciar Defeitos</div>
+          <button class="btn btn-primary btn-sm" onclick="abrirModalNovoDefeito()">+ Novo Defeito</button>
+        </div>
+        <p style="font-size:12px;color:var(--gray-500);margin-bottom:12px;">Os defeitos cadastrados aqui aparecem para os inspetores durante a inspeção. Defina o nome e a origem (Usinagem ou Fundição/Injeção).</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Código</th><th>Defeito</th><th>Origem</th><th></th></tr></thead>
+            <tbody id="defeitos-admin-tbody"></tbody>
+          </table>
+        </div>
+      </div>
     </div>
   </div>
 </div>
+
+<!-- MODAL NOVO DEFEITO -->
+<div class="modal-overlay" id="modal-novo-defeito">
+  <div class="modal">
+    <h2>Cadastrar Defeito</h2>
+    <p class="modal-sub">O defeito ficará disponível para os inspetores imediatamente.</p>
+    <div id="nd-success" class="alert alert-success" style="display:none">✔ Defeito cadastrado!</div>
+    <div id="nd-error" class="alert alert-error" style="display:none"></div>
+    <div class="form-col">
+      <div class="form-group">
+        <label>Nome do Defeito</label>
+        <input type="text" id="nd-nome" placeholder="Ex: Rebarba de bruto" />
+      </div>
+      <div class="form-group">
+        <label>Origem</label>
+        <select id="nd-origem">
+          <option value="U">Usinagem (U)</option>
+          <option value="F">Fundição / Injeção (F)</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-novo-defeito')">Cancelar</button>
+      <button class="btn btn-primary" style="width:auto;padding:10px 24px" onclick="salvarNovoDefeito()">Cadastrar</button>
+    </div>
+  </div>
 
 <!-- MODAL EDITOR DE PLANO DE VERIFICAÇÃO 100% -->
 <div class="modal-overlay" id="modal-plano-editor">
@@ -887,37 +928,21 @@
 </div>
 
 <script>
-const DEFEITOS = {
-  usinagem:[
-    {cod:'U1',desc:'Rebarba'},
-    {cod:'U2',desc:'Cavaco incluso'},
-    {cod:'U3',desc:'Acabamento inadequado'},
-    {cod:'U4',desc:'Furo ausente'},
-    {cod:'U5',desc:'Chanfro ausente'},
-    {cod:'U6',desc:'Trinca / Quebra'},
-    {cod:'U7',desc:'Rosca defeituosa'},
-    {cod:'U8',desc:'Marca de ferramenta'},
-    {cod:'U9',desc:'Contaminação'},
-    {cod:'U10',desc:'Datador ilegível'},
-  ],
-  fundicao:[
-    {cod:'F1',desc:'Porosidade'},
-    {cod:'F2',desc:'Rechupe'},
-    {cod:'F3',desc:'Trinca'},
-    {cod:'F4',desc:'Aleta quebrada'},
-    {cod:'F5',desc:'Peça incompleta'},
-    {cod:'F6',desc:'Inclusão (areia/escória)'},
-    {cod:'F7',desc:'Deformação'},
-    {cod:'F8',desc:'Rebarba'},
-    {cod:'F9',desc:'Rastreabilidade ausente'},
-    {cod:'F10',desc:'Mistura de versão'},
-  ],
-  plano100:[
-    {cod:'P100',desc:'Reprovação — Plano de Verificação 100%'},
-  ]
-};
+// Defeitos — gerenciados pelo Admin via planilha (carregados dinamicamente)
+// Estrutura: {cod, desc, origem} — origem: 'U' = Usinagem, 'F' = Fundição/Injeção
+let DEFEITOS = { usinagem:[], fundicao:[], plano100:[{cod:'P100',desc:'Reprovação — Plano de Verificação 100%'}] };
+let ALL_DEFS = [...DEFEITOS.plano100];
 
-const ALL_DEFS = [...DEFEITOS.usinagem,...DEFEITOS.fundicao,...DEFEITOS.plano100];
+function reconstruirDefeitos(lista){
+  // lista: [{cod, desc, origem}]
+  DEFEITOS.usinagem = lista.filter(d=>d.origem==='U');
+  DEFEITOS.fundicao = lista.filter(d=>d.origem==='F');
+  ALL_DEFS = [...DEFEITOS.usinagem, ...DEFEITOS.fundicao, ...DEFEITOS.plano100];
+  // Atualiza modal de defeitos e selects
+  buildDefeitosModal();
+  buildDefeitosFrModal();
+  updateDefeitoSelects();
+}
 
 const PN_CLIENTE = {
   '2020':'EATON',
@@ -1167,6 +1192,7 @@ async function loadData(){
     const uResp = await apiGet('getUsuarios').catch(()=>({users:[]}));
     const aResp = await apiGet('getApontamentos').catch(()=>({apontamentos:[]}));
     const pResp = await apiGet('getPlanos').catch(()=>({planos:[]}));
+    const dResp = await apiGet('getDefeitos').catch(()=>({defeitos:[]}));
 
     if(uResp.error) console.warn('getUsuarios error:', uResp.error);
     if(aResp.error) console.warn('getApontamentos error:', aResp.error);
@@ -1196,6 +1222,10 @@ async function loadData(){
     state.planos = pResp.planos || [];
     buildPlanosRuntime();
     atualizarListaInspetores();
+    // Carrega defeitos do backend
+    if(dResp.defeitos && dResp.defeitos.length > 0){
+      reconstruirDefeitos(dResp.defeitos);
+    }
 
     // Verifica se pelo menos usuários carregaram
     if(!uResp.users || uResp.users.length === 0){
@@ -3148,6 +3178,84 @@ async function removerUsuario(re){
 }
 
 // ══ ADMIN — PLANO DE VERIFICAÇÃO 100% (CRUD completo) ══
+// ══ GERENCIAR DEFEITOS ══
+function renderDefeitosAdmin(){
+  const tbody = document.getElementById('defeitos-admin-tbody');
+  if(!tbody) return;
+  const lista = [...DEFEITOS.usinagem, ...DEFEITOS.fundicao];
+  if(!lista.length){
+    tbody.innerHTML=`<tr><td colspan="4"><div class="empty"><div class="empty-icon">⚠</div><p>Nenhum defeito cadastrado ainda.</p></div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = lista.map(d=>`
+    <tr>
+      <td><span class="badge badge-yellow">${d.cod}</span></td>
+      <td>${d.desc}</td>
+      <td><span style="font-size:12px;color:var(--gray-500)">${d.origem==='U'?'🔧 Usinagem':'🏭 Fundição/Injeção'}</span></td>
+      <td><button class="btn btn-secondary btn-sm" onclick="excluirDefeito('${d.cod}')">✕</button></td>
+    </tr>`).join('');
+}
+
+function abrirModalNovoDefeito(){
+  document.getElementById('nd-nome').value='';
+  document.getElementById('nd-origem').value='U';
+  document.getElementById('nd-success').style.display='none';
+  document.getElementById('nd-error').style.display='none';
+  openModal('modal-novo-defeito');
+}
+
+async function salvarNovoDefeito(){
+  const nome = document.getElementById('nd-nome').value.trim();
+  const origem = document.getElementById('nd-origem').value;
+  const errEl = document.getElementById('nd-error');
+  const sucEl = document.getElementById('nd-success');
+
+  if(!nome){ errEl.textContent='Informe o nome do defeito.'; errEl.style.display=''; return; }
+  errEl.style.display='none';
+
+  // Gera código automático
+  const prefixo = origem;
+  const existentes = [...DEFEITOS.usinagem,...DEFEITOS.fundicao]
+    .filter(d=>d.origem===origem)
+    .map(d=>parseInt(d.cod.replace(prefixo,''))||0);
+  const proximo = existentes.length ? Math.max(...existentes)+1 : 1;
+  const cod = `${prefixo}${proximo}`;
+
+  const novoDefeito = {cod, desc:nome, origem};
+
+  try{
+    const resp = await apiPost('addDefeito', novoDefeito);
+    if(resp.success){
+      const lista = [...DEFEITOS.usinagem,...DEFEITOS.fundicao, novoDefeito];
+      reconstruirDefeitos(lista);
+      renderDefeitosAdmin();
+      sucEl.style.display='';
+      setTimeout(()=>{ sucEl.style.display='none'; closeModal('modal-novo-defeito'); }, 1500);
+    } else {
+      errEl.textContent='Erro ao salvar. Tente novamente.'; errEl.style.display='';
+    }
+  }catch(e){
+    errEl.textContent='Erro de conexão.'; errEl.style.display='';
+  }
+}
+
+async function excluirDefeito(cod){
+  if(!confirm(`Excluir o defeito "${cod}"? Apontamentos existentes não serão afetados.`)) return;
+  try{
+    const resp = await apiPost('deleteDefeito', {cod});
+    if(resp.success){
+      const lista = [...DEFEITOS.usinagem,...DEFEITOS.fundicao].filter(d=>d.cod!==cod);
+      reconstruirDefeitos(lista);
+      renderDefeitosAdmin();
+      showSaved();
+    } else {
+      alert('Erro ao excluir defeito.');
+    }
+  }catch(e){
+    alert('Erro de conexão.');
+  }
+}
+
 function renderPlanosAdmin(){
   const container = document.getElementById('planos-admin-lista');
   if(!container) return;
@@ -3347,7 +3455,7 @@ function showTab(n){
     }
     renderHistorico();
   }
-  if(n==='admin'){renderAdminTable(); renderPlanosAdmin();}
+  if(n==='admin'){renderAdminTable(); renderPlanosAdmin(); renderDefeitosAdmin();}
 }
 
 function toISODate(d){
