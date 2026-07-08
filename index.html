@@ -476,27 +476,9 @@
       </div>
 
       <!-- HUB DE CLIENTES -->
-      <div class="card" id="hub-clientes">
-        <div class="card-title">Selecione o Cliente</div>
-        <div class="hub-grid">
-          <button class="hub-btn" onclick="selecionarCliente('EATON')">EATON</button>
-          <button class="hub-btn" onclick="selecionarCliente('ZF')">ZF</button>
-          <button class="hub-btn" onclick="selecionarCliente('GM')">GM</button>
-          <button class="hub-btn" onclick="selecionarCliente('AAM')">AAM</button>
-          <button class="hub-btn" onclick="selecionarCliente('MWM')">MWM</button>
-          <button class="hub-btn" onclick="selecionarCliente('SCANIA')">SCANIA</button>
-          <button class="hub-btn" onclick="selecionarCliente('MBB')">MBB</button>
-          <button class="hub-btn" onclick="selecionarCliente('VOLVO')">VOLVO</button>
-        </div>
-      </div>
-
-      <!-- INICIAR INSPEÇÃO -->
-      <div class="card" id="card-iniciar-inspecao" style="display:none">
-        <div class="card-title-row">
-          <div class="card-title" id="hub-cliente-titulo">Cliente selecionado</div>
-          <button class="btn btn-secondary btn-sm" onclick="voltarHub()">← Trocar cliente</button>
-        </div>
-        <div style="display:flex;flex-direction:column;gap:12px;margin-top:8px;">
+      <!-- BOTÕES DIRETOS SEM HUB -->
+      <div class="card" id="card-iniciar-inspecao">
+        <div style="display:flex;flex-direction:column;gap:12px;">
           <button type="button" class="btn btn-plano" style="font-size:17px;padding:24px 10px;" onclick="iniciarInspecaoFluxo()">
             📋 Registro de Inspeção 100%
             <span style="display:block;font-size:11px;font-weight:400;opacity:0.8;margin-top:4px;">Laudo peça a peça · item por item</span>
@@ -1766,19 +1748,13 @@ function onQtdNcInput(input){
 let clienteSelecionado = '';
 
 function selecionarCliente(cliente){
+  // Mantido para compatibilidade mas não usado mais pelo Hub
   clienteSelecionado = cliente;
-  document.querySelectorAll('.hub-btn').forEach(b=>{
-    b.classList.toggle('ativo', b.textContent===cliente);
-  });
-  document.getElementById('hub-clientes').style.display='none';
-  document.getElementById('card-iniciar-inspecao').style.display='';
-  document.getElementById('hub-cliente-titulo').textContent=`Cliente: ${cliente}`;
 }
 
 function voltarHub(){
   clienteSelecionado = '';
-  document.getElementById('hub-clientes').style.display='';
-  document.getElementById('card-iniciar-inspecao').style.display='none';
+  document.getElementById('card-iniciar-inspecao').style.display='';
   document.getElementById('form-apontamento').style.display='none';
   document.getElementById('card-fechar-embalagem').style.display='none';
   document.getElementById('card-form-rapido').style.display='none';
@@ -1792,9 +1768,8 @@ let frDefSelecionados = {};
 function abrirFormRapido(){
   document.getElementById('card-iniciar-inspecao').style.display='none';
   document.getElementById('card-form-rapido').style.display='';
-  document.getElementById('form-rapido-titulo').textContent=`Registrar Apontamento — ${clienteSelecionado}`;
+  document.getElementById('form-rapido-titulo').textContent='Registrar Apontamento';
   limparFormRapido();
-  // Monta modal de defeitos do FR
   buildDefeitosFrModal();
   setTimeout(()=>document.getElementById('fr-pn').focus(), 100);
 }
@@ -2171,12 +2146,7 @@ function cancelarInspecaoFluxo(){
   document.getElementById('modal-insp').style.display='none';
   document.getElementById('form-apontamento').style.display='none';
   document.getElementById('card-fechar-embalagem').style.display='none';
-  if(clienteSelecionado){
-    document.getElementById('card-iniciar-inspecao').style.display='';
-  } else {
-    document.getElementById('card-iniciar-inspecao').style.display='none';
-    document.getElementById('hub-clientes').style.display='';
-  }
+  document.getElementById('card-iniciar-inspecao').style.display='';
   inspecao = { pn:'', cliente:'', qtd:0, pecaAtual:0, pecas:[] };
 }
 
@@ -2440,11 +2410,7 @@ async function finalizarEmbalagem(){
     await apiPost('addApontamento', novoApontamento);
     state.apontamentos.push(novoApontamento);
     document.getElementById('card-fechar-embalagem').style.display='none';
-    if(clienteSelecionado){
-      document.getElementById('card-iniciar-inspecao').style.display='';
-    } else {
-      document.getElementById('hub-clientes').style.display='';
-    }
+    document.getElementById('card-iniciar-inspecao').style.display='';
     inspecao = { pn:'', cliente:'', qtd:0, pecaAtual:0, pecas:[] };
     renderTurnoTable(); renderTurnoKPIs(); showSaved();
   }catch(e){
