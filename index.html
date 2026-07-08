@@ -2764,7 +2764,7 @@ function renderTurnoTable(){
     return;
   }
 
-  tbody.innerHTML=[...meus].reverse().map(a=>`
+  tbody.innerHTML=[...meus].sort((a,b)=>Number(b.id)-Number(a.id)).map(a=>`
     <tr>
       <td><strong>${a.pn}</strong></td>
       <td>${a.cliente}</td>
@@ -3060,7 +3060,7 @@ function renderHistorico(){
     return;
   }
 
-  const rows = [...data].reverse();
+  const rows = [...data].sort((a,b)=>Number(b.id)-Number(a.id));
   tbody.innerHTML = rows.map(a=>{
     const emb = a.qtdEmbalagem || '—';
     const mainRow = `<tr class="hist-row" onclick="toggleHistExpand(${a.id})" data-id="${a.id}" style="cursor:pointer;">
