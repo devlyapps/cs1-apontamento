@@ -1165,11 +1165,15 @@ async function apiPost(action, data){
 async function loadData(){
   showLoading(true);
   try{
-    const [uResp, aResp, pResp] = await Promise.all([
-      apiGet('getUsuarios'),
-      apiGet('getApontamentos'),
-      apiGet('getPlanos')
-    ]);
+    // Chama cada API separadamente para isolar falhas
+    const uResp = await apiGet('getUsuarios').catch(()=>({users:[]}));
+    const aResp = await apiGet('getApontamentos').catch(()=>({apontamentos:[]}));
+    const pResp = await apiGet('getPlanos').catch(()=>({planos:[]}));
+
+    if(uResp.error) console.warn('getUsuarios error:', uResp.error);
+    if(aResp.error) console.warn('getApontamentos error:', aResp.error);
+    if(pResp.error) console.warn('getPlanos error:', pResp.error);
+
     state.users = (uResp.users||[]).map(u=>({
       nome:u.nome, re:String(u.re), senha:String(u.senha), turno:u.turno, perfil:u.perfil
     }));
@@ -1193,7 +1197,13 @@ async function loadData(){
     }));
     state.planos = pResp.planos || [];
     buildPlanosRuntime();
+
+    // Verifica se pelo menos usuários carregaram
+    if(!uResp.users || uResp.users.length === 0){
+      alert('Não foi possível carregar os usuários. Verifique sua conexão e recarregue a página.');
+    }
   }catch(e){
+    console.error('loadData error:', e);
     alert('Não foi possível conectar ao servidor de dados. Verifique sua conexão com a internet.');
     state.users=[]; state.apontamentos=[]; state.planos=[];
   }
