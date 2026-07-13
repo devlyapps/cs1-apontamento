@@ -2832,7 +2832,7 @@ function atualizarListaInspetores(){
 
   // Nomes reais dos apontamentos (campo inspetor responsável)
   const nomesApontamentos = state.apontamentos
-    .map(a=>(a.inspetor||'').trim())
+    .map(a=>String(a.inspetor||'').trim())
     .filter(n=>n.length > 0);
 
   const todosNomes = [...new Set([...nomesUsuarios, ...nomesApontamentos])].sort();
@@ -2888,7 +2888,7 @@ function renderDashboard(){
   if(fim) data=data.filter(a=>parseData(a.data)<=new Date(fim+'T23:59:59'));
   if(cli) data=data.filter(a=>a.cliente===cli);
   if(turno) data=data.filter(a=>a.turno===turno);
-  if(insp) data=data.filter(a=>(a.inspetor||'').trim()===insp.trim());
+  if(insp) data=data.filter(a=>String(a.inspetor||'').trim()===insp.trim());
   if(def) data=data.filter(a=>a.defeitos&&a.defeitos[def]!==undefined);
 
   const total=data.reduce((s,a)=>s+a.qtdTotal,0);
@@ -2949,8 +2949,8 @@ function renderDashboard(){
   // Agrupa pelo inspetor RESPONSÁVEL (campo inspetor), não pelo login
   const inspetores={};
   data.forEach(a=>{
-    const inspResp = (a.inspetor||'').trim();
-    const inspMaster = (a.inspetorMaster||'').trim();
+    const inspResp = String(a.inspetor||'').trim();
+    const inspMaster = String(a.inspetorMaster||'').trim();
     // Usa o inspetor responsável. Se igual ao master ou vazio, usa master ou "Não identificado"
     const key = inspResp || inspMaster || state.currentUser?.nome || 'Não identificado';
     if(!inspetores[key]) inspetores[key]={nome:key, total:0, nc:0};
@@ -3054,7 +3054,7 @@ function updateInspetorSelect(){
   // Coleta nomes únicos dos inspetores responsáveis dos apontamentos + usuários cadastrados
   const nomes = new Set();
   state.users.forEach(u=>{ if(u.perfil==='inspetor' && u.nome) nomes.add(u.nome.trim()); });
-  state.apontamentos.forEach(a=>{ if(a.inspetor) nomes.add(a.inspetor.trim()); });
+  state.apontamentos.forEach(a=>{ if(a.inspetor) nomes.add(String(a.inspetor).trim()); });
   sel.innerHTML='<option value="">Todos os inspetores</option>'+
     [...nomes].sort().map(n=>`<option value="${n}">${n}</option>`).join('');
 }
