@@ -3356,10 +3356,12 @@ async function planoEditorSalvar(){
   }
 
   try{
-    await apiPost('savePlano', { pn, cliente, itens });
-    // Se o PN foi alterado (não deveria, campo é travado ao editar) ou é novo, recarrega tudo do backend
-    const resp = await apiGet('getPlanos');
-    state.planos = resp.planos || [];
+    // savePlanos grava a lista inteira de uma vez, então mesclamos o plano
+    // editado/novo com os demais já existentes antes de enviar.
+    const planosAtualizados = state.planos.filter(p=>String(p.pn)!==pn);
+    planosAtualizados.push({ pn, cliente, itens });
+    await apiPost('savePlanos', planosAtualizados);
+    state.planos = planosAtualizados;
     buildPlanosRuntime();
     fecharPlanoEditor();
     renderPlanosAdmin();
